@@ -14,6 +14,8 @@ Confirmed on a Fire TV Stick HD running Vega OS 2.0:
 - Settings → Streaming & Cache: persistent Auto/manual budget, storage usage,
   clearing unused downloads, and idle download pausing.
 - Addon installation links return to the app instead of a blank WebView.
+- Startup loading indicator and a 20-second timeout with a remote-focusable
+  Retry button; retry recreates the WebView without clearing app data.
 
 **Auto defaults to a maximum 1.5 GiB whole-file cache budget.** Settings allows
 manual budgets from 0.5–8 GiB, limited by available storage with 384 MiB reserved
@@ -79,6 +81,7 @@ node frontend-controls/navigation.test.cjs
 cd stremio-wrapper
 node addonLinks.test.cjs
 npx --no-install tsc --noEmit
+npx --no-install jest --config jest.startup.config.json --runInBand
 ```
 
 The TypeScript checks require installed SDK/npm dependencies. The build script
