@@ -9,7 +9,7 @@ jest.mock('react-native', () => ({
 }));
 jest.mock('@amazon-devices/webview', () => ({WebView: 'WebView'}));
 jest.mock('@amazon-devices/vegatransport', () => ({
-  VegaTransport: {start: () => 'http://127.0.0.1:11470/upnp/ui/', stop: jest.fn()},
+  VegaTransport: {start: () => 'http://127.0.0.1:11470/app/', stop: jest.fn()},
 }));
 jest.mock('@amazon-devices/react-native-kepler', () => ({
   usePreventHideSplashScreen: jest.fn(),
@@ -32,11 +32,11 @@ test('a stalled page shows Retry and retry remounts the local page', () => {
   expect(tree.root.findAllByType('WebView' as any)).toHaveLength(0);
   const retry = tree.root.findByType('TouchableOpacity' as any);
   act(() => retry.props.onPress());
-  expect(web().props.source.uri).toBe('http://127.0.0.1:11470/upnp/ui/');
+  expect(web().props.source.uri).toBe('http://127.0.0.1:11470/app/');
   expect(tree.root.findAllByType('TouchableOpacity' as any)).toHaveLength(0);
 });
 test('a loaded page does not later time out', () => {
-  const url = 'http://127.0.0.1:11470/upnp/ui/';
+  const url = 'http://127.0.0.1:11470/app/';
   act(() => web().props.onLoadStart({nativeEvent: {url}}));
   act(() => web().props.onError({nativeEvent: {code: -29, url, description: 'transient'}}));
   act(() => web().props.onLoad({}));
@@ -51,7 +51,7 @@ test('only main-frame HTTP errors replace the page with Retry', () => {
   expect(tree.root.findByType('TouchableOpacity' as any)).toBeDefined();
 });
 test('a failed auxiliary resource does not replace the page', () => {
-  const url = 'http://127.0.0.1:11470/upnp/ui/';
+  const url = 'http://127.0.0.1:11470/app/';
   act(() => web().props.onLoadStart({nativeEvent: {url}}));
   act(() => web().props.onError({nativeEvent: {code: -29, url: 'https://example.invalid/helper.js', description: 'failed'}}));
   expect(web()).toBeDefined();

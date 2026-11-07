@@ -32,3 +32,22 @@ to a deliberately missing local page produced the native HTTP 404 recovery scree
 The user pressed Select on Retry and confirmed returning to the Stremio home
 screen. The button's focused appearance was then changed to retain readable text
 and a cyan border, rather than appearing disabled.
+
+## Bundled frontend entry
+
+A subsequent launcher reopen still stalled, so the recovery control alone was
+insufficient. The frontend is now built with upstream's
+`SERVICE_WORKER_DISABLED=true` setting. The native entry URL is `/app/`, outside
+the old `/upnp/ui/` worker scope. Both paths serve bundled assets for compatibility.
+The origin remains `http://127.0.0.1:11470`, retaining origin-scoped app data.
+No localStorage, IndexedDB, addons or saved cache preferences are cleared.
+
+This avoids the redundant website offline cache for native bundled assets; the
+original low-level cause of the stalled renderer has not been proven.
+
+Verification: six Rust tests, four startup component tests, seven addon-link
+cases and TypeScript passed. The installed app reported `/app/`, a complete home
+document and no controlling service worker. The previous registration remained
+scoped to `/upnp/ui/`, confirming scope separation without clearing user data.
+The user then pressed Fire TV Home and reopened Streamio4Fire from its icon,
+confirming normal launch without Retry.

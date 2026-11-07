@@ -110,7 +110,9 @@ fn start() -> anyhow::Result<Running> {
         })?;
     ready_rx.recv_timeout(Duration::from_secs(10))?;
     Ok(Running {
-        url: CString::new("http://127.0.0.1:11470/upnp/ui/")?,
+        // The legacy website service worker owns /upnp/ui/. Keep native bundled
+        // assets outside its scope while retaining the origin's user data.
+        url: CString::new("http://127.0.0.1:11470/app/")?,
         stop: stop_tx,
         thread,
     })

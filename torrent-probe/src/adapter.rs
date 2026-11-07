@@ -60,6 +60,7 @@ pub fn router(managed: Arc<Managed>) -> Router {
         .route("/{hash}/{idx}/stats.json", get(stats_file))
         .route("/{hash}/{idx}", get(stream))
         .route("/torrents/{hash}/stats/v1", get(diagnostic_stats))
+        .nest_service("/app", tower_http::services::ServeDir::new("/pkg/assets/stremio"))
         .nest_service("/upnp/ui", tower_http::services::ServeDir::new("/pkg/assets/stremio"))
         .route_service("/tv.js", tower_http::services::ServeFile::new("/pkg/assets/stremio/vega-tv.js"))
         .layer(DefaultBodyLimit::max(2 * 1024 * 1024))

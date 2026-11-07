@@ -66,6 +66,9 @@ bash scripts/build.sh
 
 The script downloads the official Stremio Web source at the pinned commit,
 preserves its licence, applies our keyboard patch, and builds its assets locally.
+Website service-worker registration is disabled: these assets are already bundled
+with the native app. The entry page uses `/app/`, outside the legacy `/upnp/ui/`
+worker scope, while keeping the same origin and existing user data.
 SDKs, dependencies, compiled assets and installers are excluded from Git.
 The complete build from this newly assembled checkout still needs validation;
 individual components and the installed prototype were tested during development.

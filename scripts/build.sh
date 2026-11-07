@@ -18,7 +18,7 @@ else
 fi
 npx --yes pnpm@11.8.0 install --frozen-lockfile --ignore-scripts
 NODE_PATH="$frontend/node_modules" node "$root/torrent-probe/frontend-controls/keyboard.test.cjs"
-npx --yes pnpm@11.8.0 build
+SERVICE_WORKER_DISABLED=true npx --yes pnpm@11.8.0 build
 
 wrapper="$root/torrent-probe/stremio-wrapper"
 mkdir -p "$wrapper/assets/stremio"
