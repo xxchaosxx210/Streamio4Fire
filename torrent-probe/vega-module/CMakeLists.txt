@@ -1,0 +1,13 @@
+cmake_minimum_required(VERSION 3.19)
+project(VegaTransport LANGUAGES CXX C)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_CXX_STANDARD 17)
+find_package(turbomoduleAPI CONFIG REQUIRED)
+if(NOT DEFINED ENV{PROBE_RUST_ARCHIVE})
+  message(FATAL_ERROR "Set PROBE_RUST_ARCHIVE to the built ARMv7 torrent archive")
+endif()
+file(GLOB GENERATED kepler/turbo-modules/generated/*.cpp)
+kepler_add_turbo_module_library(VegaTransport ${GENERATED}
+  kepler/turbo-modules/VegaTransport.cpp kepler/AutoLinkInit.cpp)
+target_link_libraries(VegaTransport PRIVATE "$ENV{PROBE_RUST_ARCHIVE}" pthread dl m)
+install(TARGETS VegaTransport)

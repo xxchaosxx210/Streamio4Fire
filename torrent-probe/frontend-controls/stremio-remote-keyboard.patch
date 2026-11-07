@@ -1,0 +1,38 @@
+diff --git a/src/common/Shortcuts/keyboard.ts b/src/common/Shortcuts/keyboard.ts
+index d87d821..a158a2d 100644
+--- a/src/common/Shortcuts/keyboard.ts
++++ b/src/common/Shortcuts/keyboard.ts
+@@ -10,6 +10,7 @@ const KEY_CODE_MAP: Record<number, string> = {
+     38: 'ArrowUp',
+     39: 'ArrowRight',
+     40: 'ArrowDown',
++    179: 'Space',
+     107: '+',
+     109: '-',
+     122: 'F11',
+@@ -24,6 +25,9 @@ const KEY_MAP: Record<string, string> = {
+     ' ': 'Space',
+     Spacebar: 'Space',
+     Esc: 'Escape',
++    GoBack: 'Escape',
++    BrowserBack: 'Escape',
++    MediaPlayPause: 'Space',
+     Left: 'ArrowLeft',
+     Up: 'ArrowUp',
+     Right: 'ArrowRight',
+@@ -60,12 +64,13 @@ const normalizeKeyboardKey = ({ key, keyCode, which }: KeyboardEvent) => {
+ };
+ 
+ const getKeyboardShortcutKey = (event: KeyboardEvent) => {
+-    return event.code && event.code !== 'Unidentified' ? event.code : normalizeKeyboardKey(event);
++    const code = KEY_MAP[event.code] ?? event.code;
++    return code && code !== 'Unidentified' ? code : normalizeKeyboardKey(event);
+ };
+ 
+ const getKeyboardShortcutKeys = (event: KeyboardEvent) => {
+     const normalizedKey = normalizeKeyboardKey(event);
+-    const code = event.code !== 'Unidentified' ? event.code : '';
++    const code = event.code !== 'Unidentified' ? (KEY_MAP[event.code] ?? event.code) : '';
+     return code && code !== normalizedKey ? [code, normalizedKey] : [normalizedKey];
+ };
+ 

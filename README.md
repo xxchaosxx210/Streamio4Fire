@@ -1,0 +1,82 @@
+# Streamio4Fire
+
+Experimental, self-contained Stremio client for **Vega OS 2.0 / ARMv7 Fire TV**.
+The torrent engine runs on the Stick; playback does not require a laptop server.
+This is an independent project, unaffiliated with Stremio or Amazon.
+
+## Current status
+
+Confirmed on a Fire TV Stick HD running Vega OS 2.0:
+
+- Bundled Stremio Web frontend with a local Rust streaming engine.
+- Real Torrentio selection and progressive playback of licensed Big Buck Bunny.
+- Video, audio, pause/resume, Back, seeking and D-pad control navigation.
+- Cache usage display, clearing unused downloads and idle download pausing.
+- Addon installation links return to the app instead of a blank WebView.
+
+**The current whole-file cache limit is 1.5 GiB.** The desired 4GB Torrentio
+filter is preserved, but files larger than the current limit cannot play yet.
+A bounded rolling piece cache with backward-seek fetching remains to be built.
+Launcher visibility and long-running playback also need further device testing.
+This repository contains development source, not a finished consumer release.
+
+## Layout
+
+| Path | Purpose |
+| --- | --- |
+| `torrent-probe/src` | Rust engine, Stremio HTTP adapter, ranges and cache management |
+| `torrent-probe/vega-module` | C++ / TypeScript bridge into the Rust library |
+| `torrent-probe/stremio-wrapper` | React Native / TypeScript Vega WebView app |
+| `torrent-probe/frontend-controls` | Frontend keyboard patch and TV controls |
+| `scripts/build.sh` | Build the pinned frontend, native module and application |
+
+Historical internal names such as `VegaTransport` and the diagnostics package ID
+are retained to avoid breaking the native bridge or existing device app data.
+The display name is **Streamio4Fire**.
+
+## Building
+
+Use Linux or WSL with the Amazon Vega SDK configured, Node.js 22+, Git, Python 3,
+and Rust with the `armv7-unknown-linux-gnueabihf` target. The prototype was built
+with Vega CLI 1.4.8 and SDK 2.0.13986. Amazon SDK dependencies require the SDK's
+package registry configuration; an ordinary public npm installation is insufficient.
+
+```bash
+source ~/vega/env
+source ~/.cargo/env
+rustup target add armv7-unknown-linux-gnueabihf
+# Your SDK/native build directory containing toolchain/ and sysroot-armv7-release/:
+export VEGA_SDK_PRIVATE=/path/to/native/build/private
+bash scripts/build.sh
+```
+
+The script downloads the official Stremio Web source at the pinned commit,
+preserves its licence, applies our keyboard patch, and builds its assets locally.
+SDKs, dependencies, compiled assets and installers are excluded from Git.
+The complete build from this newly assembled checkout still needs validation;
+individual components and the installed prototype were tested during development.
+
+Install the resulting `torrent-probe/stremio-wrapper/build/armv7-debug/*.vpkg`
+using the Vega SDK device tools. Enable developer access and supply your device
+address locally. No accounts, VPN credentials or configured addons are included.
+
+## Checks
+
+```bash
+cd torrent-probe
+cargo test --locked --lib
+node frontend-controls/navigation.test.cjs
+cd stremio-wrapper
+node addonLinks.test.cjs
+npx --no-install tsc --noEmit
+```
+
+The TypeScript checks require installed SDK/npm dependencies. The build script
+also runs the frontend keyboard tests against the patched upstream source.
+The Big Buck Bunny fixture is for freely licensed playback testing.
+
+## Attribution and licensing
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Upstream licences remain
+applicable to their respective code. No project-wide licence has been selected
+for the newly written integration code yet. No compiled release is published here.
