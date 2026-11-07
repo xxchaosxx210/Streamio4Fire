@@ -48,6 +48,7 @@ pub fn router(managed: Arc<Managed>) -> Router {
         .route("/", get(|| async { Json(json!({"server":"vega-rqbit-adapter","version":"0.2.0"})) }))
         .route("/settings", get(settings))
         .route("/cache", get(cache_status))
+        .route("/cache/settings", post(cache_settings))
         .route("/cache/clear", post(cache_clear))
         .route("/cache/release", post(cache_release))
         .route("/casting", get(|| async { Json(json!([])) }))
@@ -74,6 +75,15 @@ fn storage_failure(error: impl std::fmt::Display) -> Failure {
 async fn cache_status(State(api): State<Arc<Managed>>) -> Result<Json<Value>> {
     Ok(Json(api.status().map_err(failure)?))
 }
+async fn cache_settings(
+    State(api): State<Arc<Managed>>,
+    Json(preferences): Json<crate::cache_settings::Preferences>,
+) -> Result<Json<Value>> {
+    api.configure(preferences)
+        .await
+        .map_err(|e| (StatusCode::CONFLICT, Json(json!({"error":e.to_string()}))))?;
+    cache_status(State(api)).await
+}
 async fn cache_clear(State(api): State<Arc<Managed>>) -> Result<Json<Value>> {
     let removed = api.clear_idle().await.map_err(failure)?;
     Ok(Json(
@@ -91,15 +101,15 @@ fn fixture_meta() -> Value {
         "releaseInfo":"2008","runtime":"10 min","website":"https://peach.blender.org/"})
 }
 
-async fn settings() -> Json<Value> {
-    Json(
+async fn settings(State(api): State<Arc<Managed>>) -> Result<Json<Value>> {
+    Ok(Json(
         json!({"baseUrl":"http://127.0.0.1:11470/","options":[],"values":{
             "appPath":"/pkg","cacheRoot":"/data/torrent-probe-cache","serverVersion":"0.2.0-vega-rqbit",
-            "remoteHttps":null,"transcodeProfile":null,"cacheSize":1610612736,"proxyStreamsEnabled":false,
+            "remoteHttps":null,"transcodeProfile":null,"cacheSize":api.limit().map_err(failure)?,"proxyStreamsEnabled":false,
             "btMaxConnections":128,"btHandshakeTimeout":10000,"btRequestTimeout":10000,
             "btDownloadSpeedSoftLimit":0,"btDownloadSpeedHardLimit":0,"btMinPeersForStable":1
         }}),
-    )
+    ))
 }
 
 fn sources(body: &Value) -> Vec<String> {
@@ -200,9 +210,10 @@ async fn ensure(
             .map_err(failure)?
             .nth(index)
             .ok_or_else(|| failure("File index not found"))?;
-        if size.saturating_add(crate::cache::OVERHEAD) > api.cache.limit {
-            let message = "Selected file exceeds the 1.5 GiB cache limit; choose a smaller stream";
-            api.error_for(hash, message.into());
+        let limit = api.limit().map_err(failure)?;
+        if size.saturating_add(crate::cache::OVERHEAD) > limit {
+            let message = format!("Selected file exceeds the current {:.2} GiB whole-file cache budget; choose a smaller stream or adjust Streaming & Cache settings", limit as f64 / 1073741824.0);
+            api.error_for(hash, message.clone());
             return Err(storage_failure(message));
         }
     }

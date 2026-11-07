@@ -11,14 +11,24 @@ Confirmed on a Fire TV Stick HD running Vega OS 2.0:
 - Bundled Stremio Web frontend with a local Rust streaming engine.
 - Real Torrentio selection and progressive playback of licensed Big Buck Bunny.
 - Video, audio, pause/resume, Back, seeking and D-pad control navigation.
-- Cache usage display, clearing unused downloads and idle download pausing.
+- Settings → Streaming & Cache: persistent Auto/manual budget, storage usage,
+  clearing unused downloads, and idle download pausing.
 - Addon installation links return to the app instead of a blank WebView.
 
-**The current whole-file cache limit is 1.5 GiB.** The desired 4GB Torrentio
-filter is preserved, but files larger than the current limit cannot play yet.
+**Auto defaults to a maximum 1.5 GiB whole-file cache budget.** Settings allows
+manual budgets from 0.5–8 GiB, limited by available storage with 384 MiB reserved
+for the system. Reductions protect active downloads and reclaim idle entries.
+Preferences survive app restarts and clearing unused cache.
+The desired 4GB Torrentio filter is preserved, but files larger than the current
+effective budget cannot play yet.
 A bounded rolling piece cache with backward-seek fetching remains to be built.
 Launcher visibility and long-running playback also need further device testing.
 This repository contains development source, not a finished consumer release.
+
+In the app, open **Settings**, then select **Streaming & Cache** at the bottom
+right. Choose Auto or an available manual budget and press Save. This budget is
+independent of Torrentio's source-size filter. Clear unused cache preserves active
+downloads. The Back button closes the settings dialog.
 
 ## Layout
 

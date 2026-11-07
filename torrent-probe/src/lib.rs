@@ -1,6 +1,7 @@
 //! Embedded diagnostic runtime for the Vega native module.
 mod adapter;
 mod cache;
+mod cache_settings;
 mod managed;
 mod ranges;
 use librqbit::{Session, SessionOptions};
@@ -37,7 +38,16 @@ fn start() -> anyhow::Result<Running> {
                         .try_init();
                     // /data is persistent and private to the Vega app; /tmp is RAM-backed.
                     let storage = std::path::PathBuf::from("/data/torrent-probe-cache");
-                    let cache = cache::Cache::new(storage.clone(), cache::LIMIT)?;
+                    let mut cache = cache::Cache::new(storage.clone(), cache::LIMIT)?;
+                    let preferences = cache_settings::Preferences::load(
+                        &cache.root.with_extension("settings.json"),
+                    )
+                    .unwrap_or_default();
+                    let disk = cache.entries()?.iter().map(|e| e.disk).sum();
+                    cache.limit = preferences.effective(cache_settings::maximum(
+                        disk,
+                        managed::free_space(&cache.root)?,
+                    ));
                     let victims = cache
                         .plan(
                             "",

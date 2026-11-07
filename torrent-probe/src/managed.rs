@@ -1,4 +1,5 @@
 use crate::cache::{Cache, OVERHEAD};
+use crate::cache_settings::{self, Preferences};
 use librqbit::{
     api::{Api, TorrentIdOrHash},
     Session,
@@ -23,6 +24,54 @@ pub struct Managed {
     error: Mutex<Option<String>>,
     requested: Mutex<Option<String>>,
     metadata: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
+    preferences: Mutex<Preferences>,
+}
+
+#[cfg(test)]
+mod settings_tests {
+    use super::*;
+    use crate::{
+        cache::LIMIT,
+        cache_settings::{Mode, MIN_LIMIT},
+    };
+    #[tokio::test]
+    async fn resizing_protects_active_downloads_then_reclaims_idle_data() {
+        let root = std::env::temp_dir().join(format!("streamio-resize-{}", std::process::id()));
+        let cache = Cache::new(root.join("downloads"), LIMIT).unwrap();
+        let hash = "d".repeat(40);
+        cache.touch(&hash, MIN_LIMIT * 2).unwrap();
+        let session = Session::new_with_opts(
+            cache.root.clone(),
+            librqbit::SessionOptions {
+                disable_dht: true,
+                disable_dht_persistence: true,
+                enable_upnp_port_forwarding: false,
+                listen_port_range: None,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        let managed = Managed::new(session.clone(), cache);
+        managed.begin_selection(&hash);
+        let small = Preferences {
+            mode: Mode::Manual,
+            limit_bytes: Some(MIN_LIMIT),
+        };
+        assert!(managed.configure(small).await.is_err());
+        assert_eq!(*managed.preferences.lock().unwrap(), Preferences::default());
+        assert_eq!(managed.cache.entries().unwrap().len(), 1);
+        managed.release().await;
+        managed.configure(small).await.unwrap();
+        assert!(managed.cache.entries().unwrap().is_empty());
+        assert_eq!(
+            Preferences::load(&managed.cache.root.with_extension("settings.json")).unwrap(),
+            small
+        );
+        assert_eq!(managed.status().unwrap()["limitBytes"], MIN_LIMIT);
+        session.stop().await;
+        std::fs::remove_dir_all(root).unwrap();
+    }
 }
 impl Deref for Managed {
     type Target = Api;
@@ -61,6 +110,8 @@ pub fn free_space(root: &Path) -> io::Result<u64> {
 }
 impl Managed {
     pub fn new(session: Arc<Session>, cache: Cache) -> Arc<Self> {
+        let preferences =
+            Preferences::load(&cache.root.with_extension("settings.json")).unwrap_or_default();
         Arc::new(Self {
             api: Api::new(session, None, None),
             cache,
@@ -70,6 +121,7 @@ impl Managed {
             error: Mutex::new(None),
             requested: Mutex::new(None),
             metadata: Mutex::new(HashMap::new()),
+            preferences: Mutex::new(preferences),
         })
     }
     pub fn set_error(&self, error: String) {
@@ -131,7 +183,11 @@ impl Managed {
         let reserve = size
             .checked_add(OVERHEAD)
             .ok_or_else(|| anyhow::anyhow!("Invalid file size"))?;
-        let victims = self.cache.plan(
+        let budget = Cache {
+            root: self.cache.root.clone(),
+            limit: self.limit()?,
+        };
+        let victims = budget.plan(
             &hash,
             reserve,
             free_space(&self.cache.root)?,
@@ -173,12 +229,56 @@ impl Managed {
     }
     pub fn status(&self) -> anyhow::Result<serde_json::Value> {
         let entries = self.cache.entries()?;
+        let disk = entries.iter().fold(0u64, |n, e| n.saturating_add(e.disk));
+        let free = free_space(&self.cache.root)?;
+        let preferences = *self.preferences.lock().unwrap();
+        let maximum = cache_settings::maximum(disk, free);
         Ok(
-            serde_json::json!({"limitBytes":self.cache.limit,"reserveBytes":crate::cache::DISK_RESERVE,
+            serde_json::json!({"limitBytes":preferences.effective(maximum),"reserveBytes":crate::cache::DISK_RESERVE,
+            "preferences":preferences,"maxLimitBytes":maximum,"minLimitBytes":cache_settings::MIN_LIMIT,"storageMode":"whole-file",
             "reservedBytes":entries.iter().fold(0u64,|n,e|n.saturating_add(e.reserved.max(e.disk))),
-            "diskBytes":entries.iter().fold(0u64,|n,e|n.saturating_add(e.disk)),"entries":entries.len(),
-            "activeEntries":self.protected(true).len(),"freeBytes":free_space(&self.cache.root)?,"error":self.error.lock().unwrap().clone()}),
+            "diskBytes":disk,"entries":entries.len(),
+            "activeEntries":self.protected(true).len(),"freeBytes":free,"error":self.error.lock().unwrap().clone()}),
         )
+    }
+    pub fn limit(&self) -> anyhow::Result<u64> {
+        let disk = self
+            .cache
+            .entries()?
+            .iter()
+            .fold(0u64, |n, e| n.saturating_add(e.disk));
+        Ok(self
+            .preferences
+            .lock()
+            .unwrap()
+            .effective(cache_settings::maximum(disk, free_space(&self.cache.root)?)))
+    }
+    pub async fn configure(&self, preferences: Preferences) -> anyhow::Result<()> {
+        preferences.validate()?;
+        let _gate = self.gate.lock().await;
+        let disk = self
+            .cache
+            .entries()?
+            .iter()
+            .fold(0u64, |n, e| n.saturating_add(e.disk));
+        let free = free_space(&self.cache.root)?;
+        let maximum = cache_settings::maximum(disk, free);
+        if preferences.limit_bytes.is_some_and(|n| n > maximum) {
+            anyhow::bail!(
+                "That cache size would leave too little system storage; choose a smaller size"
+            );
+        }
+        let budget = Cache {
+            root: self.cache.root.clone(),
+            limit: preferences.effective(maximum),
+        };
+        let victims = budget.plan("", 0, free, &self.protected(true))?;
+        for hash in victims {
+            self.evict(&hash).await?;
+        }
+        preferences.save(&self.cache.root.with_extension("settings.json"))?;
+        *self.preferences.lock().unwrap() = preferences;
+        Ok(())
     }
     pub async fn pause_idle(&self) {
         let _gate = self.gate.lock().await;
