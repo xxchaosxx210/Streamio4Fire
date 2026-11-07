@@ -62,3 +62,16 @@ budget. Supporting those files with a smaller disk cache remains separate work.
   dialog open, displays the error and restores focus to Save.
 
 No new 4GB playback claim is made by these settings tests.
+
+## Settings button visibility
+
+The cache button and dialog are removed whenever the route leaves Settings.
+Both History API methods are observed along with hash changes, back/forward
+events, and a periodic route check. Async cache responses also recheck the current
+route before showing controls.
+
+A device reproduction confirmed the old button survived a silent history route
+change. After the fix, both `pushState` and `replaceState` transitions to a player
+route removed the button and open dialog immediately. A delayed cache response
+after leaving Settings did not recreate either control. No video was started by
+these route tests.

@@ -72,13 +72,22 @@
     }
     root.addEventListener('keydown',onKey,true);
     root.addEventListener('keyup',onKey,true);
+    let lastRoute=null;
     function syncRoute() {
+        if(lastRoute===location.hash)return;
+        lastRoute=location.hash;
         playerFocus=false;
         if (!isPlayer()) fetch('/cache/release',{method:'POST'}).catch(()=>{});
         const panel=doc.getElementById('vega-cache-panel');
         if (!location.hash.startsWith('#/settings')) {panel?.remove();closeCache(false);}
     }
     root.addEventListener('hashchange',syncRoute);
+    root.addEventListener('popstate',syncRoute);
+    // The frontend can change hash routes via History API without hashchange.
+    for(const method of ['pushState','replaceState']) {
+        const original=root.history[method];
+        root.history[method]=function(...args){const result=original.apply(this,args);syncRoute();return result;};
+    }
     root.addEventListener('pagehide',()=>navigator.sendBeacon('/cache/release',''));
     function installStyle() {
         if (!doc.head || doc.getElementById('vega-tv-style')) return;
@@ -186,13 +195,14 @@
             }
             doc.getElementById('vega-cache-text').textContent='Cache: '+gib(status.diskBytes)+' / '+gib(status.limitBytes);
             renderCacheDialog();
-        }
+        } else {doc.getElementById('vega-cache-panel')?.remove();closeCache(false);}
         let error=doc.getElementById('vega-cache-error');
         if (isPlayer() && status.error) {if(!error){error=doc.createElement('div');error.id='vega-cache-error';doc.body.append(error);}error.textContent=status.error;}
         else error?.remove();
     }
     let checkingCache=false;
     setInterval(()=>{
+        syncRoute();
         if (isPlayer() && playerFocus) revealControls();
         if (!checkingCache && doc.body && (isPlayer() || location.hash.startsWith('#/settings'))) {
             checkingCache=true;
