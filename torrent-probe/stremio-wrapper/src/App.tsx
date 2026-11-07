@@ -43,11 +43,15 @@ export const App = () => {
       }
     };
     start();
+    let backgrounded = false;
     const subscription = AppState.addEventListener('change', state => {
+      console.info('APP_STATE_CHANGE', state);
       if (state === 'background') {
+        backgrounded = true;
         setEngineReady(false);
         VegaTransport.stop();
-      } else if (state === 'active') {
+      } else if (state === 'active' && backgrounded) {
+        backgrounded = false;
         start();
       }
     });

@@ -2,14 +2,19 @@ import * as React from 'react';
 import renderer, {act} from 'react-test-renderer';
 
 const mockHideSplash = jest.fn();
+let mockAppStateChange: (state: string) => void;
+const mockStart = jest.fn(() => 'http://127.0.0.1:11470/app/');
+const mockStop = jest.fn();
 jest.mock('react-native', () => ({
-  AppState: {addEventListener: () => ({remove: jest.fn()})},
+  AppState: {addEventListener: (_event: string, listener: (state: string) => void) => {
+    mockAppStateChange = listener; return {remove: jest.fn()};
+  }},
   Text: 'Text', View: 'View', TouchableOpacity: 'TouchableOpacity',
   StyleSheet: {create: (styles: unknown) => styles},
 }));
 jest.mock('@amazon-devices/webview', () => ({WebView: 'WebView'}));
 jest.mock('@amazon-devices/vegatransport', () => ({
-  VegaTransport: {start: () => 'http://127.0.0.1:11470/app/', stop: jest.fn()},
+  VegaTransport: {start: (...args: []) => mockStart(...args), stop: () => mockStop()},
 }));
 jest.mock('@amazon-devices/react-native-kepler', () => ({
   usePreventHideSplashScreen: jest.fn(),
@@ -19,9 +24,28 @@ import {App} from '../src/App';
 
 let tree: renderer.ReactTestRenderer;
 beforeEach(() => {
+  mockStart.mockClear();mockStop.mockClear();
   jest.useFakeTimers();
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   act(() => {tree = renderer.create(<App />);});
+});
+test('keyboard focus and duplicate active events keep the current page', () => {
+  act(() => web().props.onLoad({}));
+  const currentPage = web();
+  act(() => {mockAppStateChange('inactive');mockAppStateChange('active');mockAppStateChange('active');});
+  expect(mockStart).toHaveBeenCalledTimes(1);
+  expect(mockStop).not.toHaveBeenCalled();
+  expect(web()).toBe(currentPage);
+  act(() => jest.advanceTimersByTime(25000));
+  expect(web()).toBe(currentPage);
+});
+test('a genuine background return restarts the engine once', () => {
+  act(() => mockAppStateChange('background'));
+  expect(mockStop).toHaveBeenCalledTimes(1);
+  expect(tree.root.findAllByType('WebView' as any)).toHaveLength(0);
+  act(() => {mockAppStateChange('active');mockAppStateChange('active');});
+  expect(mockStart).toHaveBeenCalledTimes(2);
+  expect(web()).toBeDefined();
 });
 afterEach(() => {act(() => tree.unmount());jest.useRealTimers();});
 const web = () => tree.root.findByType('WebView' as any);

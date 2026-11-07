@@ -51,3 +51,18 @@ document and no controlling service worker. The previous registration remained
 scoped to `/upnp/ui/`, confirming scope separation without clearing user data.
 The user then pressed Fire TV Home and reopened Streamio4Fire from its icon,
 confirming normal launch without Retry.
+
+## Keyboard focus lifecycle
+
+The wrapper previously called engine start and remounted its WebView for every
+`active` notification, including notifications without a preceding background.
+That could discard an in-progress search when a system overlay returned focus.
+It now restarts only after an actual `background` event; inactive/active and
+duplicate active notifications leave the current WebView and engine untouched.
+Lifecycle transitions are logged without search text to aid device diagnosis.
+
+Two additional component tests cover preserving the loaded page across
+inactive/active and duplicate active notifications, and restarting once after a
+genuine background return. Six wrapper tests and TypeScript passed.
+After installing this build, the user repeated the on-screen-keyboard search and
+confirmed that pressing OK keeps the search/results screen visible.
