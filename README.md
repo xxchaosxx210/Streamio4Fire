@@ -1,5 +1,7 @@
 # Streamio4Fire
 
+<img src="assets/branding/streamio4fire-icon.png" alt="Streamio4Fire flame and play icon" width="160" />
+
 Experimental, self-contained Stremio client for **Vega OS 2.0 / ARMv7 Fire TV**.
 The torrent engine runs on the Stick; playback does not require a laptop server.
 This is an independent project, unaffiliated with Stremio or Amazon.
