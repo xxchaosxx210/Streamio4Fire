@@ -8,8 +8,13 @@
   `torrent-probe/frontend-controls/keyboard.ts` and its patch derive from this
   project and retain that licence. Changes add Fire TV Back and media-key mapping.
 - **rqbit / librqbit 8.1.1**, rqbit contributors:
-  https://github.com/ikatson/rqbit — Apache-2.0. Resolved by Cargo; dependency
-  source is not vendored in this repository. Cargo.lock records exact versions.
+  https://github.com/ikatson/rqbit — Apache-2.0. The crates.io 8.1.1 source is
+  vendored at `torrent-probe/vendor/librqbit`, with its Apache licence. Upstream
+  source commit: `00b97485160ff5b5aa2b379ea0815d568ec665f0`, `crates/librqbit`.
+  Streamio4Fire changes add opt-in rolling storage hooks, stream-window scheduling,
+  safe piece invalidation and cache-miss retry. Evictable data is not advertised
+  or uploaded to peers. See `docs/rolling-cache.md`. Other dependencies remain
+  resolved by Cargo; Cargo.lock records exact versions.
 - **React, React Native and Amazon Vega SDK components** retain their respective
   upstream licences and SDK terms. SDK binaries, sysroots, toolchains and npm
   dependencies are not redistributed here. Generated Kepler bridge files retain

@@ -5,11 +5,21 @@ edition = "2021"
 publish = false
 
 [lib]
-crate-type = ["staticlib"]
+crate-type = ["staticlib", "rlib"]
+
+[features]
+rolling-selftest = ["dep:ring"]
+
+[[bin]]
+name = "rolling-selftest"
+path = "src/bin/rolling_selftest.rs"
+required-features = ["rolling-selftest"]
 
 [dependencies]
 anyhow = "1"
+ring = { version = "0.17", optional = true }
 librqbit = { version = "=8.1.1", default-features = false, features = ["rust-tls", "http-api", "tracing-subscriber-utils"] }
+librqbit-core = { version = "=5.0.0", default-features = false }
 serde = { version = "1", features = ["rc", "derive"] }
 serde_json = "1"
 url = "2"
@@ -26,3 +36,10 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 opt-level = 1
 debug = false
 strip = "debuginfo"
+
+[patch.crates-io]
+librqbit = { path = "vendor/librqbit" }
+
+[dev-dependencies]
+ring = "0.17"
+reqwest = { version = "0.12", default-features = false, features = ["json"] }

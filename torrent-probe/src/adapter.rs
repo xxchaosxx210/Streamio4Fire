@@ -202,21 +202,18 @@ async fn ensure(
         return Err(failure("Cached torrent hash mismatch"));
     }
     let folder = api.cache.path(hash).map_err(failure)?;
+    if meta.torrent_bytes.len() > 2 * 1024 * 1024 {
+        return Err(failure("Torrent metadata exceeds the supported size"));
+    }
     std::fs::write(folder.join(".torrent"), &meta.torrent_bytes).map_err(failure)?;
     let selected = file.or_else(|| meta.info.length.map(|_| 0));
     if let Some(index) = selected {
-        let size = meta
+        let _size = meta
             .info
             .iter_file_lengths()
             .map_err(failure)?
             .nth(index)
             .ok_or_else(|| failure("File index not found"))?;
-        let limit = api.limit().map_err(failure)?;
-        if size.saturating_add(crate::cache::OVERHEAD) > limit {
-            let message = format!("Selected file exceeds the current {:.2} GiB whole-file cache budget; choose a smaller stream or adjust Streaming & Cache settings", limit as f64 / 1073741824.0);
-            api.error_for(hash, message.clone());
-            return Err(storage_failure(message));
-        }
     }
     api.api_add_torrent(
         AddTorrent::from_bytes(meta.torrent_bytes),
@@ -224,6 +221,7 @@ async fn ensure(
             paused: true,
             overwrite: true,
             output_folder: Some(folder.to_string_lossy().to_string()),
+            storage_factory: Some(api.storage_factory(hash).map_err(failure)?),
             initial_peers: Some(meta.seen_peers),
             trackers: if trackers.is_empty() {
                 None
@@ -302,6 +300,11 @@ async fn create_blob(
         .and_then(Value::as_str)
         .ok_or_else(|| failure("Missing torrent hash"))?;
     hash_id(hash)?;
+    std::fs::write(
+        api.cache.path(hash).map_err(failure)?.join(".torrent"),
+        &bytes,
+    )
+    .map_err(failure)?;
     api.api_add_torrent(
         AddTorrent::from_bytes(bytes),
         Some(AddTorrentOptions {
@@ -314,6 +317,7 @@ async fn create_blob(
                     .to_string_lossy()
                     .to_string(),
             ),
+            storage_factory: Some(api.storage_factory(hash).map_err(failure)?),
             ..Default::default()
         }),
     )
@@ -448,6 +452,8 @@ async fn stream(
         StatusCode::OK
     };
     let h = response.headers_mut();
+    // The browser must not create a second, unbounded disk cache of movie data.
+    h.insert(header::CACHE_CONTROL, "no-store".parse().unwrap());
     h.insert(header::ACCEPT_RANGES, "bytes".parse().unwrap());
     h.insert(
         header::CONTENT_LENGTH,

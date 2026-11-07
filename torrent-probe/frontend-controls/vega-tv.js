@@ -145,6 +145,9 @@
         const dialog=doc.getElementById('vega-cache-dialog');
         if (!dialog || !cacheStatus) return;
         const status=cacheStatus;
+        dialog.querySelector('#vega-cache-explanation').textContent=status.storageMode==='rolling'
+            ? 'Auto uses up to 1.5 GiB while protecting system storage. Movies can be larger than the cache. Older data is removed as playback advances; seeking back may download it again. Torrentio’s source-size filter is separate.'
+            : 'Auto uses up to 1.5 GiB while protecting system storage. This build retains whole files. Torrentio’s source-size filter is separate.';
         const label=value=>value==='auto'?'Auto':gib(Number(value));
         dialog.querySelector('#vega-cache-selection').textContent='Selected: '+label(draft)+'. Saved: '+label(selectedPreference(status))+'.';
         dialog.querySelector('#vega-cache-usage').textContent='Cached: '+gib(status.diskBytes)+' / '+gib(status.limitBytes)+' budget';

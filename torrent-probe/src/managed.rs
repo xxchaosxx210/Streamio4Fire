@@ -25,6 +25,7 @@ pub struct Managed {
     requested: Mutex<Option<String>>,
     metadata: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
     preferences: Mutex<Preferences>,
+    rolling: Mutex<HashMap<String, Arc<crate::rolling::Control>>>,
 }
 
 #[cfg(test)]
@@ -122,6 +123,7 @@ impl Managed {
             requested: Mutex::new(None),
             metadata: Mutex::new(HashMap::new()),
             preferences: Mutex::new(preferences),
+            rolling: Mutex::new(HashMap::new()),
         })
     }
     pub fn set_error(&self, error: String) {
@@ -175,14 +177,17 @@ impl Managed {
         }
         self.cache.remove(hash)?;
         self.leases.lock().unwrap().remove(hash);
+        self.rolling.lock().unwrap().remove(hash);
         Ok(())
     }
-    pub async fn prepare(&self, hash: &str, size: u64) -> anyhow::Result<Lease> {
+    pub async fn prepare(&self, hash: &str, _size: u64) -> anyhow::Result<Lease> {
         let hash = hash.to_ascii_lowercase();
         let _gate = self.gate.lock().await;
-        let reserve = size
-            .checked_add(OVERHEAD)
-            .ok_or_else(|| anyhow::anyhow!("Invalid file size"))?;
+        let reserve = self.limit()?;
+        anyhow::ensure!(
+            reserve > OVERHEAD,
+            "Insufficient storage for a rolling cache"
+        );
         let budget = Cache {
             root: self.cache.root.clone(),
             limit: self.limit()?,
@@ -197,6 +202,11 @@ impl Managed {
             self.evict(&victim).await?;
         }
         self.cache.touch(&hash, reserve)?;
+        if let Some(control) = self.rolling.lock().unwrap().get(&hash) {
+            control
+                .capacity
+                .store(reserve - OVERHEAD, Ordering::Relaxed);
+        }
         *self.selected.lock().unwrap() = Some(hash.clone());
         *self.error.lock().unwrap() = None;
         let counter = self
@@ -235,7 +245,8 @@ impl Managed {
         let maximum = cache_settings::maximum(disk, free);
         Ok(
             serde_json::json!({"limitBytes":preferences.effective(maximum),"reserveBytes":crate::cache::DISK_RESERVE,
-            "preferences":preferences,"maxLimitBytes":maximum,"minLimitBytes":cache_settings::MIN_LIMIT,"storageMode":"whole-file",
+            "preferences":preferences,"maxLimitBytes":maximum,"minLimitBytes":cache_settings::MIN_LIMIT,"storageMode":"rolling",
+            "evictedPieces":self.rolling.lock().unwrap().values().map(|c| c.evictions.load(Ordering::Relaxed)).sum::<u64>(),
             "reservedBytes":entries.iter().fold(0u64,|n,e|n.saturating_add(e.reserved.max(e.disk))),
             "diskBytes":disk,"entries":entries.len(),
             "activeEntries":self.protected(true).len(),"freeBytes":free,"error":self.error.lock().unwrap().clone()}),
@@ -252,6 +263,28 @@ impl Managed {
             .lock()
             .unwrap()
             .effective(cache_settings::maximum(disk, free_space(&self.cache.root)?)))
+    }
+    pub fn storage_factory(
+        &self,
+        hash: &str,
+    ) -> anyhow::Result<librqbit::storage::BoxStorageFactory> {
+        use librqbit::storage::StorageFactoryExt;
+        let capacity = self
+            .limit()?
+            .checked_sub(OVERHEAD)
+            .ok_or_else(|| anyhow::anyhow!("Insufficient storage for rolling cache"))?;
+        let control = self
+            .rolling
+            .lock()
+            .unwrap()
+            .entry(hash.to_string())
+            .or_insert_with(|| crate::rolling::Control::new(capacity))
+            .clone();
+        Ok(crate::rolling::Factory {
+            root: self.cache.path(hash)?,
+            control,
+        }
+        .boxed())
     }
     pub async fn configure(&self, preferences: Preferences) -> anyhow::Result<()> {
         preferences.validate()?;

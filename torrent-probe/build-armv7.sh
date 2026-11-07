@@ -15,7 +15,11 @@ export CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER="$compiler"
 export RUSTFLAGS="-C relocation-model=pic -C link-arg=--sysroot=$sysroot"
 export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-4}"
 cd "$(dirname "$0")"
-if [[ "${1:-}" == "--embedded" ]]; then
+if [[ "${1:-}" == "--selftest" ]]; then
+    cargo rustc --locked --release --features rolling-selftest --bin rolling-selftest \
+        --target armv7-unknown-linux-gnueabihf -- \
+        -C "link-arg=-B$runtime" -L "native=$runtime"
+elif [[ "${1:-}" == "--embedded" ]]; then
     cargo build --locked --release --lib --target armv7-unknown-linux-gnueabihf
 else
     cargo rustc --locked --release --bin vega-torrent-probe \

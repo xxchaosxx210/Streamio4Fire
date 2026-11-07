@@ -4,6 +4,9 @@ mod cache;
 mod cache_settings;
 mod managed;
 mod ranges;
+mod rolling;
+#[cfg(any(test, feature = "rolling-selftest"))]
+pub mod rolling_tests;
 use librqbit::{Session, SessionOptions};
 use std::{
     ffi::{c_char, CString},

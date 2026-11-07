@@ -6,3 +6,4 @@
 # Preserve verbatim upstream licence text and patch context whitespace.
 LICENSES/* -whitespace
 *.patch -whitespace
+torrent-probe/vendor/** -whitespace

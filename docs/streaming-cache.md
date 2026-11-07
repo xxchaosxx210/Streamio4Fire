@@ -33,13 +33,13 @@ The local-only engine exposes:
 Manual API values must be between 0.5 and 8 GiB and fit the current safe maximum.
 The Stremio server settings response reports the effective budget too.
 
-## Current limitation
+## Rolling storage
 
-This remains a **whole-file cache**, not a rolling piece cache. Movie files must
-fit inside the effective budget, including download bookkeeping overhead.
-Torrentio's source-size filter remains independent and is not changed by this page.
-The 4GB filter can therefore still list files that exceed the Stick's available
-budget. Supporting those files with a smaller disk cache remains separate work.
+Movies do not have to fit inside the cache budget. The engine retains a bounded
+set of pieces around active reads and fetches discarded pieces again on backward
+seeks. Torrentio's source-size filter remains independent and is not changed by
+this page. The budget includes reserved bookkeeping space and filesystem overhead.
+See [rolling-cache.md](rolling-cache.md) for validation and implementation details.
 
 ## Validation (2026-11-07)
 
@@ -61,7 +61,8 @@ budget. Supporting those files with a smaller disk cache remains separate work.
   focus without changing the selected budget. A simulated HTTP 409 leaves the
   dialog open, displays the error and restores focus to Save.
 
-No new 4GB playback claim is made by these settings tests.
+These earlier settings checks predate the rolling engine; larger-file validation
+is recorded separately in rolling-cache.md.
 
 ## Settings button visibility
 

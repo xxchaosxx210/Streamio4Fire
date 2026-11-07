@@ -124,7 +124,7 @@ impl Cache {
     ) -> io::Result<Vec<String>> {
         if size > self.limit {
             return Err(io::Error::other(
-                format!("Selected file exceeds the current {:.2} GiB whole-file cache budget; choose a smaller stream or adjust Streaming & Cache settings", self.limit as f64 / 1073741824.0),
+                format!("Requested cache reservation exceeds the current {:.2} GiB budget; adjust Streaming & Cache settings", self.limit as f64 / 1073741824.0),
             ));
         }
         let entries = self.entries()?;

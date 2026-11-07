@@ -19,13 +19,15 @@ Confirmed on a Fire TV Stick HD running Vega OS 2.0:
 - Startup loading indicator and a 20-second timeout with a remote-focusable
   Retry button; retry recreates the WebView without clearing app data.
 
-**Auto defaults to a maximum 1.5 GiB whole-file cache budget.** Settings allows
+**Auto defaults to a maximum 1.5 GiB rolling-cache budget.** Settings allows
 manual budgets from 0.5–8 GiB, limited by available storage with 384 MiB reserved
 for the system. Reductions protect active downloads and reclaim idle entries.
 Preferences survive app restarts and clearing unused cache.
-The desired 4GB Torrentio filter is preserved, but files larger than the current
-effective budget cannot play yet.
-A bounded rolling piece cache with backward-seek fetching remains to be built.
+The desired 4GB Torrentio filter is preserved. Files can exceed the cache budget:
+older pieces are discarded and fetched again when seeking backwards. The engine
+downloads playback windows instead of retaining the complete movie. A synthetic
+torrent over 4 GiB passed byte-verified streaming and seeks with an 8 MiB cache on
+both the development host and the ARMv7 Stick.
 Launcher visibility and long-running playback also need further device testing.
 This repository contains development source, not a finished consumer release.
 
@@ -98,3 +100,5 @@ The Big Buck Bunny fixture is for freely licensed playback testing.
 See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Upstream licences remain
 applicable to their respective code. No project-wide licence has been selected
 for the newly written integration code yet. No compiled release is published here.
+
+Rolling-cache design and validation: [docs/rolling-cache.md](docs/rolling-cache.md).
