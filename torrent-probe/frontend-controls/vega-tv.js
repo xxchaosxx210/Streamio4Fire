@@ -159,6 +159,7 @@
             cacheStatus=result.cache||result;
             if(path==='/cache/settings')draft=selectedPreference(cacheStatus);
             if(dialog?.isConnected)dialog.querySelector('#vega-cache-message').textContent=success;
+            if(path==='/cache/settings' && dialog?.isConnected)closeCache();
         } catch(error) {
             if(dialog?.isConnected)dialog.querySelector('#vega-cache-message').textContent=error.message;
         } finally {

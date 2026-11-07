@@ -2,7 +2,9 @@
 
 Open **Settings → Streaming & Cache** (the bottom-right button in Settings).
 Move onto a budget with the remote arrows, move to Save, and press Select.
-The dialog shows both the selected draft and the saved budget. Back closes it.
+The dialog shows both the selected draft and the saved budget. Save closes it on
+success and returns focus to Streaming & Cache. Errors leave it open with an
+explanation. Back also closes it. Clear unused cache leaves the dialog open.
 
 - Auto: up to 1.5 GiB, reduced if the system needs more free storage.
 - Manual: 0.5, 1, 1.5, 2, 4 or 8 GiB. Sizes exceeding the current safe maximum
@@ -55,5 +57,8 @@ budget. Supporting those files with a smaller disk cache remains separate work.
 - Physical remote feedback identified the initial focus/selection ambiguity;
   controls were revised so focus chooses the draft budget. The user then confirmed
   that selecting and saving 2 GiB works on the physical remote.
+- Follow-up device check: successful Save closes the dialog and restores launcher
+  focus without changing the selected budget. A simulated HTTP 409 leaves the
+  dialog open, displays the error and restores focus to Save.
 
 No new 4GB playback claim is made by these settings tests.
