@@ -2,7 +2,12 @@
 
 `streamio4fire-icon.png` is the approved master artwork, generated with the
 built-in image generation tool on 2026-11-07. It is opaque square artwork.
-Launcher-size exports and package-manifest integration are not included yet.
+The package manifest references the padded 512×512 export at
+`torrent-probe/stremio-wrapper/assets/image/streamio4fire-icon.png`. The flame is
+kept inside the middle 512×288 band for the sideloaded launcher crop.
+`streamio4fire-tv-tile.png` is a 1280×720 export for future listing artwork;
+no Appstore submission is performed. Regenerate exports on Windows with
+`pwsh -File scripts/export-icons.ps1`. The original master remains unchanged.
 
 Generation prompt:
 
