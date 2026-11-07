@@ -1,0 +1,19 @@
+--- a/src/App/App.js
++++ b/src/App/App.js
+@@ -17,6 +17,7 @@
+ const { default: GamepadModal } = require('./GamepadModal');
+ const { default: useInterfaceScale } = require('./useInterfaceScale');
+ const styles = require('./styles');
++const TvShell = require('../StreamioTV/TvShell').default;
+ 
+ const ProtectedRoutes = withCoreSuspender(Routes);
+ const NAVIGATE_TABS_ROUTES = ['/', '/discover', '/library', '/calendar', '/addons', '/settings'];
+@@ -174,7 +175,7 @@
+                                     <DeepLinkHandler />
+                                     <ShellOpenHandler />
+                                     <UpdaterBanner className={styles['updater-banner-container']} />
+-                                    <ProtectedRoutes />
++                                    <TvShell><ProtectedRoutes /></TvShell>
+                                 </DiscordProvider>
+                             </FullscreenProvider>
+                         </ShortcutsProvider>

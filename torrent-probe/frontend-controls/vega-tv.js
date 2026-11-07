@@ -66,7 +66,7 @@
         }
         if (!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(key) || editing(doc.activeElement)) return;
         // Left/Right retain the player's seek shortcuts until its controls are focused.
-        if (isPlayer() && !playerFocus && ['ArrowLeft','ArrowRight'].includes(key)) return;
+        if (isPlayer() && !doc.querySelector('.s4f-loading') && !playerFocus && ['ArrowLeft','ArrowRight'].includes(key)) return;
         e.preventDefault();e.stopImmediatePropagation();
         if (e.type==='keydown') {revealControls();requestAnimationFrame(()=>requestAnimationFrame(()=>move(key)));}
     }

@@ -16,14 +16,24 @@ if git apply --check "$patch" 2>/dev/null; then
 else
   git apply --reverse --check "$patch"
 fi
+tv_patch="$root/torrent-probe/frontend-tv/stremio-tv-shell.patch"
+if git apply --check "$tv_patch" 2>/dev/null; then
+  git apply "$tv_patch"
+else
+  git apply --reverse --check "$tv_patch"
+fi
+mkdir -p "$frontend/src/StreamioTV"
+cp "$root/torrent-probe/frontend-tv/"*.ts "$root/torrent-probe/frontend-tv/"*.tsx "$root/torrent-probe/frontend-tv/"*.less "$frontend/src/StreamioTV/"
 npx --yes pnpm@11.8.0 install --frozen-lockfile --ignore-scripts
 NODE_PATH="$frontend/node_modules" node "$root/torrent-probe/frontend-controls/keyboard.test.cjs"
+NODE_PATH="$frontend/node_modules" node "$root/torrent-probe/frontend-tv/api.test.cjs"
 SERVICE_WORKER_DISABLED=true npx --yes pnpm@11.8.0 build
 
 wrapper="$root/torrent-probe/stremio-wrapper"
 mkdir -p "$wrapper/assets/stremio"
 cp -a build/. "$wrapper/assets/stremio/"
 cp "$root/torrent-probe/frontend-controls/vega-tv.js" "$wrapper/assets/stremio/vega-tv.js"
+cp "$root/assets/branding/streamio4fire-icon.png" "$wrapper/assets/stremio/images/streamio4fire-icon.png"
 python3 - "$wrapper/assets/stremio/index.html" <<'PY'
 import pathlib, sys
 p = pathlib.Path(sys.argv[1])
