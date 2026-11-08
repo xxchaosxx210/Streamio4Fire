@@ -18,7 +18,7 @@ The laptop, an external streaming server and an OS update are not required.
 - FFmpeg 7.1.3's format/codec/utility libraries are linked into the native module.
   No subprocess, decoder or encoder is used. Video and audio packets are copied.
 - Sections target 24 seconds or 8 MiB of media, ending before the next keyframe.
-  Retained input packets are capped at 12 MiB and output at 16 MiB. MP4 sections
+  Retained input packets and output are each capped at 16 MiB. MP4 sections
   are kept in memory; they do not create another full movie on disk.
 - Matroska can report presentation timestamps as decode timestamps. Reordered
   frames then fail MP4's monotonic decode-clock requirement. The native module
@@ -70,6 +70,15 @@ installed build after validation. No diagnostic clip or configured source is
 included in this repository or the normal application.
 
 ## Reproducing the native regression
+
+A longer playback check found a repeatable resume failure at 483.517 seconds in
+a high-bitrate source: its complete keyframe section required about 13 MiB,
+exceeding the former 12 MiB retained-input cap. The input cap now matches the
+existing 16 MiB output cap; the 8 MiB soft target, packet-count limit and deadlines
+remain. The generated high-bitrate GOP regression fails with the old bound and
+passes with the new one, verifies decoded output/timestamps, and rejects a GOP
+above the hard budget. The exact failing section also succeeded on the Stick and
+normal source selection resumed beyond it after installing this change.
 
 `scripts/test-remux.sh` needs a configured host FFmpeg 7.1.3 library build in
 `STREAMIO_HOST_FFMPEG_ROOT`, a C++ compiler, and a full host `ffmpeg` executable

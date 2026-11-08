@@ -98,7 +98,9 @@ extern "C" int streamio_remux_section(const StreamioInput* reader, double start,
                 av_packet_unref(packet);result=0;break;
             }
             copied+=packet->size;
-            if(copied>12*1024*1024 || packets.size()>=16384){result=AVERROR(ENOMEM);goto done;}
+            // A complete GOP can exceed the 8 MiB soft target. Allow the same
+            // bounded payload budget as the output rather than rejecting 12–16 MiB GOPs.
+            if(copied>16*1024*1024 || packets.size()>=16384){result=AVERROR(ENOMEM);goto done;}
             const int64_t originTicks=av_rescale_q(origin,AV_TIME_BASE_Q,source->time_base);
             packet->pts-=originTicks;
             if(packet->dts!=AV_NOPTS_VALUE)packet->dts-=originTicks;
