@@ -54,4 +54,3 @@ const styles = StyleSheet.create({
   current: {position: 'absolute', top: -1, width: 10, height: 10, marginLeft: -5, borderRadius: 5, backgroundColor: 'white'},
   hint: {fontSize: 18, color: '#d9e1f2', textAlign: 'center'},
 });
-
