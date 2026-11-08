@@ -55,5 +55,6 @@ cd "$wrapper"
 # Refresh the local native tarball integrity in the tracked lockfile.
 npm install --ignore-scripts --no-audit ../vega-module/amazon-devices-vegatransport-0.0.1.tgz
 node addonLinks.test.cjs
+node nativePlayback.test.cjs
 npx --no-install tsc --noEmit
 npx --no-install react-native build-vega --build-type Debug --target armv7

@@ -23,7 +23,8 @@
     "@amazon-devices/vegatransport": "file:../vega-module/amazon-devices-vegatransport-0.0.1.tgz",
     "@amazon-devices/webview": "~4.0.0",
     "react": "19.2.0",
-    "react-native": "0.83.0"
+    "react-native": "0.83.0",
+    "@amazon-devices/react-native-w3cmedia": "2.3.5"
   },
   "engines": {
     "node": ">=20"

@@ -21,6 +21,8 @@ launch-type = "singleton"
 categories = ["com.amazon.category.main"]
 
 [wants]
+[[wants.service]]
+id = "com.amazon.media.playersession.service"
 # Web renderer service for rendering web content
 [[wants.service]]
 id = "com.amazon.webview.renderer_service"

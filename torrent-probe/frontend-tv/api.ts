@@ -1,5 +1,12 @@
 import type {Addon, Meta, Stream} from './types';
 
+export function peerSources(stream: Stream): string[] {
+    return Array.from(new Set([
+        ...(Array.isArray(stream.sources) ? stream.sources.filter((value): value is string => typeof value === 'string') : []),
+        ...(Array.isArray(stream.announce) ? stream.announce.filter((value): value is string => typeof value === 'string').map(value => `tracker:${value}`) : [])
+    ])).slice(0, 64);
+}
+
 export function resourceUrl(addon: Addon, resource: string, type: string, id: string, extras: Record<string, string> = {}) {
     const url = new URL(addon.transportUrl);
     if (!['http:', 'https:'].includes(url.protocol)) throw Error('Unsupported addon address');

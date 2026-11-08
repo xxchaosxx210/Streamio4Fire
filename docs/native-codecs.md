@@ -1,7 +1,8 @@
 # Native codec feasibility — 8 November 2026
 
-Branch: `feat/native-playback`, based on the TV-interface branch. This is an
-isolated compatibility prototype, **not a replacement for production playback**.
+Branch: `feat/native-playback`, based on the TV-interface branch. The initial
+isolated probe is now followed by native URL playback integrated into this
+feature branch. `main` has not been changed.
 
 Vega's native `VideoPlayer`/`KeplerVideoView` URL mode was tested on the physical
 ARMv7 Fire TV Stick, using `@amazon-devices/react-native-w3cmedia` 2.3.5. The test
@@ -50,10 +51,11 @@ renaming or remuxing its container is insufficient based on these controls. A
 software decoder or transcoding path needs separate implementation and device
 performance tests before promising support.
 
-Before production handoff: native player through the existing rolling-cache
-HTTP endpoint, remote controls, progress/resume, source-error UI, app lifecycle,
-and return to the same TV source screen. The current production player remains
-unchanged while these are developed.
+The feature branch now hands file sources to native playback through the
+existing rolling-cache HTTP endpoint, with remote controls, device-local resume,
+source-error UI, lifecycle cleanup and return to the same TV source screen.
+Known HLS/DASH URLs retain the existing browser-player route. See
+[native playback integration](native-playback.md) for validation and limitations.
 
 The fixture host is temporary test tooling, accessed through a loopback VDA
 reverse tunnel. An attempted reuse of the embedded host in the standalone test

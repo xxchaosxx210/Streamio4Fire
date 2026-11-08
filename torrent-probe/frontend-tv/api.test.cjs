@@ -10,6 +10,9 @@ vm.runInNewContext(ts.transpileModule(fs.readFileSync(__dirname + '/api.ts', 'ut
     compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES5},
 }).outputText, context);
 const api = exportsObject;
+assert.equal(api.peerSources({sources:['tracker:udp://example.org:80', null],announce:['udp://example.org:80']}).length, 1);
+assert.equal(api.peerSources({announce:['https://example.org/announce']})[0], 'tracker:https://example.org/announce');
+assert.equal(api.peerSources({}).length, 0);
 const addon = {transportUrl: 'https://example.org/config/manifest.json?token=test', manifest: {
     types: ['movie', 'series'], resources: ['catalog', {name: 'stream', types: ['series'], idPrefixes: ['tt']}]
 }};

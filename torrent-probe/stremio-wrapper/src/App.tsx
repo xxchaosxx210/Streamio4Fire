@@ -3,6 +3,8 @@ import * as React from 'react';
 import {useEffect, useRef, useState} from 'react';
 import {VegaTransport} from '@amazon-devices/vegatransport';
 import {addonInstallRoute} from './addonLinks';
+import {NativePlayback, NativeProgress} from './NativePlayback';
+import {isBundledPage, nativePlaybackRequest, NativePlaybackRequest} from './nativePlayback';
 import {AppState, Text, TouchableOpacity, View, StyleSheet} from 'react-native';
 import {
   useHideSplashScreenCallback,
@@ -13,10 +15,16 @@ import {
   WebViewErrorEvent,
   WebViewHttpErrorEvent,
   WebViewNavigationEvent,
+  WebViewMethods,
 } from '@amazon-devices/webview/dist/types/WebViewTypes';
 
 export const App = () => {
-  const webRef = useRef(null);
+  const webRef = useRef<WebViewMethods | null>(null);
+  const [nativeRequest, setNativeRequest] = useState<NativePlaybackRequest | null>(null);
+  const nativeRequestRef = useRef<NativePlaybackRequest | null>(null);
+  const emitProgress = (progress: NativeProgress, closed = false) => {
+    try {webRef.current?.injectJavaScript(`window.dispatchEvent(new CustomEvent('streamio-native-progress',{detail:${JSON.stringify({...progress, closed})}}));true;`);} catch { /* Renderer may be backgrounded. */ }
+  };
   const pageRequestUrl = useRef('');
   const loadFailure = useRef<string | null>(null);
   const [engineReady, setEngineReady] = useState(false);
@@ -49,6 +57,7 @@ export const App = () => {
       if (state === 'background') {
         backgrounded = true;
         setEngineReady(false);
+        setNativeRequest(null);nativeRequestRef.current = null;
         VegaTransport.stop();
       } else if (state === 'active' && backgrounded) {
         backgrounded = false;
@@ -97,7 +106,8 @@ export const App = () => {
       {engineReady && !pageError && <WebView
         key={pageAttempt}
         ref={webRef}
-        style={styles.webview}
+        style={[styles.webview, nativeRequest ? {opacity: 0} : {}]}
+        pointerEvents={nativeRequest ? 'none' : 'auto'}
         allowSystemKeyEvents
         allowsDefaultMediaControl
         domStorageEnabled
@@ -111,6 +121,13 @@ export const App = () => {
           // headers: {},
           uri: webUrl || engineUrl,
         }}
+        onMessage={event => {
+          // Vega's runtime omits url on some message events despite its type.
+          const origin = event.nativeEvent.url || pageRequestUrl.current;
+          if (!isBundledPage(origin) || nativeRequestRef.current) return;
+          const request = nativePlaybackRequest(event.nativeEvent.data);
+          if (request) {nativeRequestRef.current = request;setNativeRequest(request);}
+        }}
         onShouldStartLoadWithRequest={request => {
           if (!/^stremio:/i.test(request.url)) return true;
           const destination = addonInstallRoute(request.url, engineUrl);
@@ -118,6 +135,7 @@ export const App = () => {
           return false;
         }}
         onLoad={(_event: WebViewNavigationEvent) => {
+          webRef.current?.injectJavaScript('window.__streamioNativePlayer=true;true;');
           loadFailure.current = null;
           setPageLoaded(true);
           console.info('Page loading completed...');
@@ -157,6 +175,10 @@ export const App = () => {
       {engineReady && !pageLoaded && !pageError && <View pointerEvents="none" style={styles.loading}>
         <Text style={styles.failureText}>Loading Streamio4Fire…</Text>
       </View>}
+      {engineReady && nativeRequest && <NativePlayback request={nativeRequest} onProgress={progress => emitProgress(progress)} onClose={progress => {
+        nativeRequestRef.current = null;setNativeRequest(null);emitProgress(progress, true);
+        void fetch('http://127.0.0.1:11470/cache/release', {method: 'POST'}).catch(() => {});
+      }} />}
     </View>
   );
 };

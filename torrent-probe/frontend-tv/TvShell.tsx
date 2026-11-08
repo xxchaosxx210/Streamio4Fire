@@ -2,7 +2,7 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useLocation, useNavigate} from 'react-router';
 import {useCore} from 'stremio/core';
 import {useProfile} from 'stremio/common';
-import {availability, cachedJson, getJson, loadMeta, resourceUrl, safeImage, sourceFacts, supports, uniqueMetas} from './api';
+import {availability, cachedJson, getJson, loadMeta, peerSources, resourceUrl, safeImage, sourceFacts, supports, uniqueMetas} from './api';
 import type {Addon, Meta, Selection, Source, Stream, Video} from './types';
 import PlaybackStatus from './PlaybackStatus';
 import CacheSettings from './CacheSettings';
@@ -150,6 +150,22 @@ export default function TvShell({children}: {children: React.ReactNode}) {
         return () => {cancelAnimationFrame(frame);observer.disconnect();};
     }, [routeKey, player, legacy]);
     useEffect(() => () => request.current?.abort(), []);
+    useEffect(() => {
+        const update = (event: Event) => {
+            const progress = (event as CustomEvent).detail;
+            if (!progress || typeof progress.id !== 'string') return;
+            try {
+                const saved = JSON.parse(localStorage.getItem('streamio-native-resume') || '{}');
+                if (progress.ended || (progress.duration > 0 && progress.position > progress.duration - 15)) delete saved[progress.id];
+                else if (Number.isFinite(progress.position) && progress.position > 5) saved[progress.id] = {position: progress.position, updated: Date.now()};
+                const keys = Object.keys(saved).sort((a,b) => saved[b].updated-saved[a].updated);
+                const bounded: Record<string, unknown> = {};keys.slice(0,100).forEach(key => {bounded[key] = saved[key];});
+                localStorage.setItem('streamio-native-resume', JSON.stringify(bounded));
+            } catch { /* Full storage must not interrupt playback. */ }
+            if (progress.closed) {setSelection(null);requestAnimationFrame(() => root.current?.querySelector<HTMLButtonElement>(`button[data-focus="${remembered.current.get(routeKey) || ''}"]`)?.focus());}
+        };
+        window.addEventListener('streamio-native-progress', update);return () => window.removeEventListener('streamio-native-progress', update);
+    }, [routeKey]);
     useEffect(() => {if (wasPlayer.current && !player) {request.current?.abort();setSelection(null);}wasPlayer.current = player;}, [player]);
     useEffect(() => {
         if (player && !selection) {
@@ -169,8 +185,18 @@ export default function TvShell({children}: {children: React.ReactNode}) {
             if (stream.infoHash) {
                 if (!/^[a-f0-9]{40}$/i.test(stream.infoHash)) throw Error('Invalid torrent hash');
                 const guess = !Number.isInteger(stream.fileIdx);
-                const result = await getJson<{guessedFileIdx?: number}>(`/${stream.infoHash}/create`, controller.signal, 85000, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({guessFileIdx:guess ? (meta.type === 'series' ? {episode:Number(selectedVideo.split(':').at(-1))} : {}) : false,peerSearch:{sources:Array.isArray(stream.announce) ? stream.announce.map(value => `tracker:${value}`) : []}})});
+                const result = await getJson<{guessedFileIdx?: number}>(`/${stream.infoHash}/create`, controller.signal, 85000, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({guessFileIdx:guess ? (meta.type === 'series' ? {episode:Number(selectedVideo.split(':').at(-1))} : {}) : false,peerSearch:{sources:peerSources(stream)}})});
                 if (guess && typeof result.guessedFileIdx === 'number') stream.fileIdx = result.guessedFileIdx;
+            }
+            const bridge = window as unknown as {__streamioNativePlayer?: boolean; ReactNativeWebView?: {postMessage: (message: string) => void}};
+            const nativeUrl = stream.infoHash && Number.isInteger(stream.fileIdx) ? `${window.location.origin}/${stream.infoHash}/${stream.fileIdx}` : typeof stream.url === 'string' && !/\.(m3u8|mpd)(\?|$)/i.test(stream.url) && !stream.behaviorHints?.proxyHeaders ? stream.url : null;
+            if (nativeUrl && bridge.__streamioNativePlayer && bridge.ReactNativeWebView) {
+                if (controller.signal.aborted) return;
+                const resumeId = `${meta.type}:${selectedVideo}`;let position = 0;
+                try {position = JSON.parse(localStorage.getItem('streamio-native-resume') || '{}')[resumeId]?.position || 0;} catch { /* Resume is optional. */ }
+                setSelection(null);
+                bridge.ReactNativeWebView.postMessage(JSON.stringify({type:'native-play', id:resumeId, title:meta.name, url:nativeUrl, position, hash:stream.infoHash, ...availability(stream)}));
+                return;
             }
             const encoded = await core.transport.encodeStream(stream as unknown as Parameters<typeof core.transport.encodeStream>[0]);
             if (controller.signal.aborted) return;
@@ -195,7 +221,3 @@ export default function TvShell({children}: {children: React.ReactNode}) {
         {selection && <PlaybackStatus key={selection.started} selection={selection} player={false} onBack={goBack} onRetry={retry} />}
     </div>;
 }
-
-
-
-
