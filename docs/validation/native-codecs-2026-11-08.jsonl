@@ -1,0 +1,20 @@
+{"id": "mp4-h264-aac", "outcome": "playing", "seconds": 11.091, "frames": 0, "width": 0, "height": 0, "audioTracks": 0, "seek": true, "pauseResume": true}
+{"id": "mkv-h264-aac", "outcome": "playing", "seconds": 9.134, "frames": 0, "width": 0, "height": 0, "audioTracks": 0, "seek": true, "pauseResume": true}
+{"id": "mkv-h264-ac3", "outcome": "playing", "seconds": 9.231, "frames": 0, "width": 0, "height": 0, "audioTracks": 0, "seek": true, "pauseResume": true}
+{"id": "mkv-h264-eac3", "outcome": "playing", "seconds": 9.186, "frames": 0, "width": 0, "height": 0, "audioTracks": 0, "seek": true, "pauseResume": true}
+{"id": "mkv-h264-dts", "outcome": "playing", "seconds": 9.163, "frames": 0, "width": 0, "height": 0, "audioTracks": 0, "seek": true, "pauseResume": true}
+{"id": "mkv-hevc-aac", "outcome": "playing", "seconds": 9.149, "frames": 0, "width": 0, "height": 0, "audioTracks": 0, "seek": true, "pauseResume": true}
+{"id": "mkv-hevc10-aac", "outcome": "playing", "seconds": 9.176, "frames": 0, "width": 0, "height": 0, "audioTracks": 0, "seek": true, "pauseResume": true}
+{"id": "mp4-hevc-aac", "outcome": "playing", "seconds": 11.09, "frames": 0, "width": 0, "height": 0, "audioTracks": 0, "seek": true, "pauseResume": true}
+{"id": "webm-vp9-opus", "outcome": "playing", "seconds": 9.104, "frames": 0, "width": 0, "height": 0, "audioTracks": 0, "seek": true, "pauseResume": true}
+{"id": "webm-vp8-vorbis", "outcome": "playing", "seconds": 9.175, "frames": 0, "width": 0, "height": 0, "audioTracks": 0, "seek": true, "pauseResume": true}
+{"id": "avi-mpeg4-mp3", "outcome": "failed", "seconds": 0, "frames": 0, "width": 0, "height": 0, "audioTracks": 0, "seek": false, "pauseResume": false, "error": "No advancing playback within 20 seconds"}
+{"id": "ts-h264-aac", "outcome": "playing", "seconds": 9.759, "frames": 0, "width": 0, "height": 0, "audioTracks": 0, "seek": true, "pauseResume": true}
+{"id": "mkv-h264-mp3", "outcome": "playing", "seconds": 9.186, "frames": 0, "width": 0, "height": 0, "audioTracks": 0, "seek": true, "pauseResume": true}
+{"id": "mkv-h264-flac", "outcome": "playing", "seconds": 9.197, "frames": 0, "width": 0, "height": 0, "audioTracks": 0, "seek": true, "pauseResume": true}
+{"id": "mkv-hevc10-aac", "outcome": "playing", "seconds": 9.178, "frames": 0, "width": 0, "height": 0, "audioTracks": 0, "seek": true, "pauseResume": true}
+{"id": "webm-vp9-opus", "outcome": "playing", "seconds": 9.19, "frames": 0, "width": 0, "height": 0, "audioTracks": 0, "seek": true, "pauseResume": true}
+{"id": "ts-h264-aac", "outcome": "playing", "seconds": 9.754, "frames": 0, "width": 0, "height": 0, "audioTracks": 0, "seek": true, "pauseResume": true}
+{"id": "avi-h264-mp3", "outcome": "playing", "seconds": 13.945, "frames": 0, "width": 0, "height": 0, "audioTracks": 0, "seek": true, "pauseResume": true}
+{"id": "mkv-mpeg4-mp3", "outcome": "failed", "seconds": 0, "frames": 0, "width": 0, "height": 0, "audioTracks": 0, "seek": false, "pauseResume": false, "error": "No advancing playback within 20 seconds"}
+{"id": "mp4-mpeg4-aac", "outcome": "failed", "seconds": 0, "frames": 0, "width": 0, "height": 0, "audioTracks": 0, "seek": false, "pauseResume": false, "error": "No advancing playback within 20 seconds"}
