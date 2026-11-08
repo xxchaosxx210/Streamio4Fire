@@ -112,3 +112,23 @@ claim of all resolutions, profiles, audio output configurations or endurance.
 Older MPEG-4 Part 2/DivX-style video remains a known gap; no software decoder was
 added in this change. Subtitles and audio-track selection are not yet implemented
 in the native controls. A pre-native package was retained for local rollback.
+
+## Playback timeline
+
+The bottom controls include a focusable playback timeline. Press Up from the
+button row to focus it, then Left/Right to preview a jump. Holding an arrow
+accelerates from 10-second steps to 30 seconds after two seconds and 60 seconds
+after five seconds. Select commits the preview; Back cancels it without leaving
+the movie. Moving focus to another control also cancels the preview.
+
+When controls are hidden, Left/Right reveals and focuses the timeline. Pointer
+or touch input can drag the marker and commit on release. Preview movement does
+not restart playback; only committing a target invokes the existing seek path.
+The dedicated rewind/fast-forward keys and ±10-second buttons remain available.
+Controls stay visible while a preview is active and otherwise hide during playback.
+
+Timeline calculation and preview lifecycle tests cover bounds, pointer mapping,
+acceleration, cancellation and single-use commit. The new timeline still needs
+on-device focus, hold and pointer verification; the Stick was unreachable during
+this implementation. The earlier physical-remote confirmation above applies to
+the existing ±10 controls, not this new timeline.

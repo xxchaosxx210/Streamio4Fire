@@ -1,0 +1,33 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const ts = require('typescript');
+const api = {};
+vm.runInNewContext(ts.transpileModule(fs.readFileSync(__dirname + '/src/timeline.ts', 'utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText, {exports:api});
+assert.equal(api.timelinePosition(-10, 600), 0);
+assert.equal(api.timelinePosition(700, 600), 599.8);
+assert.equal(api.timelinePosition(50, NaN), 0);
+assert.equal(api.timelinePointer(18, 1036, 600), 0);
+assert.equal(api.timelinePointer(518, 1036, 600), 300);
+assert.equal(api.timelinePointer(1036, 1036, 600), 599.8);
+assert.equal(api.timelinePointer(-100, 1036, 600), 0);
+for (const args of [[10,36,600],[NaN,100,600],[10,100,Infinity],[10,100,0]]) assert.equal(api.timelinePointer(...args), null);
+assert.equal(api.timelineStep(1999), 10);
+assert.equal(api.timelineStep(2000), 30);
+assert.equal(api.timelineStep(5000), 60);
+const scrub = new api.TimelineScrub();
+assert.equal(scrub.step(100,600,1),110);
+assert.equal(scrub.step(105,600,1),120); // Preview stays independent of advancing playback.
+assert.equal(scrub.step(105,600,-1,2000),90);
+assert.equal(scrub.commit(),90);
+assert.equal(scrub.commit(),null); // Touch release and onPress cannot seek twice.
+assert.equal(scrub.drag(518,1036,600),300);
+scrub.cancel();
+assert.equal(scrub.commit(),null);
+assert.equal(scrub.step(5,600,-1),0);
+scrub.cancel();
+assert.equal(scrub.step(595,600,1),599.8);
+assert.equal(api.timelineClock(3661.9),'1:01:01');
+assert.equal(api.timelineClock(61),'1:01');
+assert.equal(api.timelineClock(NaN),'0:00');
+console.log('Timeline preview, bounds, drag, acceleration, commit and cancellation checks passed');

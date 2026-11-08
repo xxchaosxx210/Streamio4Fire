@@ -4,6 +4,8 @@ import {useTVEventHandler} from '@amazon-devices/react-native-kepler';
 import {KeplerVideoView, VideoPlayer} from '@amazon-devices/react-native-w3cmedia';
 import {handleTVPress, NativePlaybackRequest, remuxEndpoint} from './nativePlayback';
 import {RemuxPlayback} from './RemuxPlayback';
+import {SeekBar} from './SeekBar';
+import {TimelineScrub, timelineClock, timelinePosition} from './timeline';
 
 export type NativeProgress = {id: string; position: number; duration: number; ended: boolean};
 export function NativePlayback({request, onProgress, onClose}: {request: NativePlaybackRequest; onProgress: (progress: NativeProgress) => void; onClose: (progress: NativeProgress) => void}) {
@@ -19,6 +21,11 @@ export function NativePlayback({request, onProgress, onClose}: {request: NativeP
   const [waiting, setWaiting] = useState(true);
   const [focus, setFocus] = useState('pause');
   const [preferFocus, setPreferFocus] = useState(true);
+  const [preferredControl, setPreferredControl] = useState('pause');
+  const [preview, setPreview] = useState<number|null>(null);
+  const scrubber = useRef(new TimelineScrub());
+  const scrubHold = useRef<{key:string;direction:number;started:number}|null>(null);
+  const scrubTimer = useRef<ReturnType<typeof setInterval>|null>(null);
   const [seekMessage, setSeekMessage] = useState('');
   const seekAttempt = useRef<{from: number; target: number; started: number; paused: boolean; seekedAt?: number; warned?: boolean} | null>(null);
   const remux = useRef<RemuxPlayback|null>(null);
@@ -31,7 +38,7 @@ export function NativePlayback({request, onProgress, onClose}: {request: NativeP
   const heldKeys = useRef(new Set<string>());
   const uiState = useRef({controls, waiting, error, focus});uiState.current = {controls, waiting, error, focus};
   const callbacks = useRef({onProgress, onClose});callbacks.current = {onProgress, onClose};
-  const reveal = () => {shown.current = Date.now();setControls(true);};
+  const reveal = () => {shown.current = Date.now();uiState.current.controls=true;setControls(true);};
   const toggle = () => {
     const current = video.current;if (!current) return;
     reveal();
@@ -41,6 +48,7 @@ export function NativePlayback({request, onProgress, onClose}: {request: NativeP
   };
   const seekTo = (target: number, message: string) => {
     const current=video.current;if(!current || preparing.current)return;
+    cancelScrub();target=timelinePosition(target,movieDuration.current);
     const from=current.currentTime;const wasPaused=current.paused;
     seekAttempt.current = {from, target, started: Date.now(), paused: current.paused};
     setSeekMessage(message);reveal();
@@ -55,25 +63,41 @@ export function NativePlayback({request, onProgress, onClose}: {request: NativeP
     try {current.fastSeek(target);} catch {try {current.currentTime = target;} catch {seekAttempt.current = null;setSeekMessage('This source could not move to that time.');}}
   };
   const seek = (amount:number) => {const current=video.current;if(!current || movieDuration.current<=0)return;seekTo(Math.max(0,Math.min(movieDuration.current-0.2,current.currentTime+amount)),`Seeking ${amount>0?'forward':'back'} 10 seconds…`);};
-  useEffect(() => {if (controls || waiting || error) setPreferFocus(true);}, [controls, waiting, error]);
+  const stopScrubHold = (key?:string) => {if(key && scrubHold.current?.key!==key)return;if(scrubTimer.current)clearInterval(scrubTimer.current);scrubTimer.current=null;scrubHold.current=null;};
+  const cancelScrub = () => {stopScrubHold();scrubber.current.cancel();setPreview(null);shown.current=Date.now();};
+  const focusTimeline = () => {uiState.current.focus='timeline';setFocus('timeline');setPreferredControl('timeline');setPreferFocus(true);reveal();};
+  const stepScrub = (direction:number,heldMs=0) => {if(preparing.current || movieDuration.current<=0)return;reveal();setPreview(scrubber.current.step(video.current?.currentTime || 0,movieDuration.current,direction,heldMs));};
+  const commitScrub = () => {stopScrubHold();const target=scrubber.current.commit();setPreview(null);reveal();if(target!==null && Math.abs(target-(video.current?.currentTime || 0))>0.2)seekTo(target,`Seeking to ${timelineClock(target)}…`);};
+  useEffect(() => {if (controls || waiting || error) setPreferFocus(true);if(waiting || error){setPreferredControl('pause');cancelScrub();}}, [controls, waiting, error]);
+  useEffect(() => () => {if(scrubTimer.current)clearInterval(scrubTimer.current);}, []);
   const activate = (id: string, action: () => void) => {
     const now = Date.now();if (lastAction.current.id === id && now-lastAction.current.at < 300) return;
     lastAction.current = {id, at: now};action();
   };
   useTVEventHandler(event => {
+    const ui = uiState.current;
+    if(['left','right'].includes(event.eventType) && (!ui.controls || ui.focus==='timeline') && !ui.waiting && !ui.error) {
+      const direction=event.eventType==='left'?-1:1;
+      if(event.eventKeyAction===1){const paired=heldKeys.current.delete(event.eventType);stopScrubHold(event.eventType);if(!paired){focusTimeline();stepScrub(direction);}}
+      else if(event.eventKeyAction===0){
+        if(heldKeys.current.has(event.eventType))return;
+        heldKeys.current.add(event.eventType);stopScrubHold();focusTimeline();stepScrub(direction);
+        scrubHold.current={key:event.eventType,direction,started:Date.now()};
+        scrubTimer.current=setInterval(()=>{const hold=scrubHold.current;if(!hold)return;const elapsed=Date.now()-hold.started;if(elapsed>=450)stepScrub(hold.direction,elapsed);},250);
+      }else if(!scrubHold.current){focusTimeline();stepScrub(direction);}
+      return;
+    }
     if (!handleTVPress(heldKeys.current, event.eventType, event.eventKeyAction)) {
       if (event.eventKeyAction === 1 && ['select','enter'].includes(event.eventType)) lastAction.current.at = Date.now();
       return;
     }
-    const ui = uiState.current;
-    if (event.eventType === 'playpause') toggle();
+    if (event.eventType === 'playpause') {cancelScrub();toggle();}
     else if (['select', 'enter'].includes(event.eventType) && ui.controls) {
       const id = ui.waiting || ui.error ? 'cancel' : ui.focus;
-      activate(id, () => {if (id === 'cancel' || id === 'back') close.current();else if (id === 'rewind') seek(-10);else if (id === 'forward') seek(10);else toggle();});
+      activate(id, () => {if (id === 'cancel' || id === 'back') close.current();else if(id==='timeline')commitScrub();else if (id === 'rewind') seek(-10);else if (id === 'forward') seek(10);else toggle();});
     }
     else if (event.eventType === 'rewind' || event.eventType === 'skip_backward') seek(-10);
     else if (['forward', 'skip_forward', 'fastforward', 'fast_forward'].includes(event.eventType)) seek(10);
-    else if (!ui.controls && ['left', 'right'].includes(event.eventType)) seek(event.eventType === 'left' ? -10 : 10);
     else if (['up', 'down', 'left', 'right', 'select', 'menu'].includes(event.eventType)) reveal();
   });
   useEffect(() => {
@@ -93,7 +117,7 @@ export function NativePlayback({request, onProgress, onClose}: {request: NativeP
     const ended = () => {void finish(true);};
     const seeked = () => {if (seekAttempt.current) seekAttempt.current.seekedAt = Date.now();};
     current.addEventListener('playing', playing);current.addEventListener('error', failed);current.addEventListener('ended', ended);current.addEventListener('seeked', seeked);
-    const back = BackHandler.addEventListener('hardwareBackPress', () => {void finish();return true;});
+    const back = BackHandler.addEventListener('hardwareBackPress', () => {if(scrubber.current.preview!==null){cancelScrub();return true;}void finish();return true;});
     const background = AppState.addEventListener('change', state => {if (state === 'background') void finish();});
     const timer = setInterval(() => {
       if (!active || !initialized || closing) return;
@@ -118,7 +142,7 @@ export function NativePlayback({request, onProgress, onClose}: {request: NativeP
       if (!played && Date.now() - started > 45000) {setWaiting(false);setError('The video has not started. The source may be too slow or use an unsupported codec. Choose another source.');}
       if (played && !current.paused && Date.now() - advancing > 1800) {bufferingSince ||= Date.now();setWaiting(true);setStatus('Buffering video…');}
       else if (played && (current.paused || Date.now() - advancing < 1200)) {bufferingSince = 0;setWaiting(false);}
-      if (played && !current.paused && !seekAttempt.current && Date.now() - shown.current > 4000) setControls(false);
+      if (played && !current.paused && !seekAttempt.current && scrubber.current.preview===null && Date.now() - shown.current > 4000) setControls(false);
       if (Date.now() - lastProgress > 5000) {lastProgress = Date.now();callbacks.current.onProgress(progress());}
     }, 500);
     void current.initialize().then(async () => {
@@ -138,7 +162,7 @@ export function NativePlayback({request, onProgress, onClose}: {request: NativeP
     };void poll();return () => {active = false;controller.abort();clearTimeout(timer);};
   }, [request.hash]);
   const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${Math.floor(seconds % 60).toString().padStart(2, '0')}`;
-  const button = (id: string, label: string, action: () => void) => <TouchableOpacity key={id} activeOpacity={0.9} hasTVPreferredFocus={preferFocus && (id === 'pause' || id === 'cancel')} onFocus={() => {setPreferFocus(false);uiState.current.focus = id;setFocus(id);reveal();}} onPress={() => activate(id, action)} style={[styles.button, focus === id && styles.focus]} accessibilityRole="button"><Text style={styles.text}>{label}</Text></TouchableOpacity>;
+  const button = (id: string, label: string, action: () => void) => <TouchableOpacity key={id} activeOpacity={0.9} hasTVPreferredFocus={preferFocus && (id === preferredControl || id === 'cancel')} onFocus={() => {cancelScrub();setPreferredControl('pause');setPreferFocus(false);uiState.current.focus = id;setFocus(id);reveal();}} onPress={() => activate(id, action)} style={[styles.button, focus === id && styles.focus]} accessibilityRole="button"><Text style={styles.text}>{label}</Text></TouchableOpacity>;
   return <View style={styles.root}>
     {ready && <KeplerVideoView style={styles.video} videoPlayer={ready} scalingmode="fit" showControls={false} />}
     {(waiting || error) && <View style={styles.loading}>
@@ -147,7 +171,12 @@ export function NativePlayback({request, onProgress, onClose}: {request: NativeP
       {!error && <><ActivityIndicator size="large" color="#4ce0df" accessibilityLabel={status} /><Text style={styles.text}>Connecting / buffering…</Text><Text style={styles.text}>Reported seeders: {request.seeders ?? 'Unknown'} · Leechers: {request.leechers ?? 'Unknown'}</Text><Text style={styles.text}>Connected peers: {stats.peers ?? 'Unknown'} · Download: {stats.speed === null ? 'Unknown' : `${stats.speed.toFixed(2)} MB/s`}</Text></>}
       {button('cancel', 'Choose another source', () => close.current())}
     </View>}
-    {!waiting && !error && controls && <View style={styles.controls}><Text style={styles.title}>{request.title}</Text><Text style={styles.text}>{clock(time)} / {clock(duration)}</Text>{!!seekMessage && <Text style={styles.text}>{seekMessage}</Text>}<View style={styles.row}>{button('back', 'Back to sources', () => close.current())}{button('rewind', '−10 sec', () => seek(-10))}{button('pause', paused ? 'Play' : 'Pause', toggle)}{button('forward', '+10 sec', () => seek(10))}</View></View>}
+    {!waiting && !error && controls && <View style={styles.controls}><Text style={styles.title}>{request.title}</Text>
+      <SeekBar position={time} duration={duration} preview={preview} focused={focus==='timeline'} preferred={preferFocus && preferredControl==='timeline'}
+        onFocus={()=>{setPreferFocus(false);uiState.current.focus='timeline';setFocus('timeline');reveal();}}
+        onBlur={cancelScrub} onCancel={cancelScrub} onCommit={commitScrub} onStep={direction=>stepScrub(direction)}
+        onDrag={(x,width)=>{if(preparing.current)return;focusTimeline();setPreview(scrubber.current.drag(x,width,movieDuration.current));}} />
+      {!!seekMessage && <Text style={styles.text}>{seekMessage}</Text>}<View style={styles.row}>{button('back', 'Back to sources', () => close.current())}{button('rewind', '−10 sec', () => seek(-10))}{button('pause', paused ? 'Play' : 'Pause', toggle)}{button('forward', '+10 sec', () => seek(10))}</View></View>}
   </View>;
 }
 const styles = StyleSheet.create({

@@ -58,5 +58,6 @@ cd "$wrapper"
 npm install --ignore-scripts --no-audit ../vega-module/amazon-devices-vegatransport-0.0.1.tgz
 node addonLinks.test.cjs
 node nativePlayback.test.cjs
+node timeline.test.cjs
 npx --no-install tsc --noEmit
 npx --no-install react-native build-vega --build-type Debug --target armv7
