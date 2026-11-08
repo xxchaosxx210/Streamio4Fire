@@ -19,6 +19,7 @@ export function NativePlayback({request, onProgress, onClose}: {request: NativeP
   const [duration, setDuration] = useState(0);
   const [controls, setControls] = useState(true);
   const [waiting, setWaiting] = useState(true);
+  const [hasPlayed, setHasPlayed] = useState(false);
   const [focus, setFocus] = useState('pause');
   const [preferFocus, setPreferFocus] = useState(true);
   const [preferredControl, setPreferredControl] = useState('pause');
@@ -93,6 +94,7 @@ export function NativePlayback({request, onProgress, onClose}: {request: NativeP
     }
     if (event.eventType === 'playpause') {cancelScrub();toggle();}
     else if (['select', 'enter'].includes(event.eventType) && ui.controls) {
+      if (ui.waiting && hasPlayed && !ui.error) return;
       const id = ui.waiting || ui.error ? 'cancel' : ui.focus;
       activate(id, () => {if (id === 'cancel' || id === 'back') close.current();else if(id==='timeline')commitScrub();else if (id === 'rewind') seek(-10);else if (id === 'forward') seek(10);else toggle();});
     }
@@ -112,7 +114,7 @@ export function NativePlayback({request, onProgress, onClose}: {request: NativeP
       await release();if (active) callbacks.current.onClose(saved);
     };
     close.current = () => {void finish();};
-    const playing = () => {if (!active) return;played = true;bufferingSince = 0;setWaiting(false);setPaused(false);setStatus('Playing');shown.current = Date.now();};
+    const playing = () => {if (!active) return;played = true;setHasPlayed(true);bufferingSince = 0;setWaiting(false);setPaused(false);setStatus('Playing');shown.current = Date.now();};
     const failed = () => {if (active) {setWaiting(false);setError('We could not open this video. The source may be unavailable or use an unsupported video or audio format. Try another source.');setControls(true);}};
     const ended = () => {void finish(true);};
     const seeked = () => {if (seekAttempt.current) seekAttempt.current.seekedAt = Date.now();};
@@ -165,10 +167,11 @@ export function NativePlayback({request, onProgress, onClose}: {request: NativeP
   const button = (id: string, label: string, action: () => void) => <TouchableOpacity key={id} activeOpacity={0.9} hasTVPreferredFocus={preferFocus && (id === preferredControl || id === 'cancel')} onFocus={() => {cancelScrub();setPreferredControl('pause');setPreferFocus(false);uiState.current.focus = id;setFocus(id);reveal();}} onPress={() => activate(id, action)} style={[styles.button, focus === id && styles.focus]} accessibilityRole="button"><Text style={styles.text}>{label}</Text></TouchableOpacity>;
   return <View style={styles.root}>
     {ready && <KeplerVideoView style={styles.video} videoPlayer={ready} scalingmode="fit" showControls={false} />}
-    {(waiting || error) && <View style={styles.loading}>
+    {waiting && hasPlayed && !error && <View pointerEvents="none" style={styles.buffering}><ActivityIndicator size="small" color="#4ce0df" accessibilityLabel={status} /><Text style={styles.bufferingText}>Buffering…</Text></View>}
+    {((waiting && !hasPlayed) || error) && <View style={styles.loading}>
       <Text style={styles.title}>{request.title}</Text><Text style={styles.text}>{error || status}</Text>
       {duration > 0 && <Text style={styles.text}>{clock(time)} / {clock(duration)}</Text>}
-      {!error && <><ActivityIndicator size="large" color="#4ce0df" accessibilityLabel={status} /><Text style={styles.text}>Connecting / buffering…</Text><Text style={styles.text}>Reported seeders: {request.seeders ?? 'Unknown'} · Leechers: {request.leechers ?? 'Unknown'}</Text><Text style={styles.text}>Connected peers: {stats.peers ?? 'Unknown'} · Download: {stats.speed === null ? 'Unknown' : `${stats.speed.toFixed(2)} MB/s`}</Text></>}
+      {!error && <><ActivityIndicator size="large" color="#4ce0df" accessibilityLabel={status} /><Text style={styles.text}>Connecting / buffering…</Text><Text style={styles.text}>Reported seeders: {request.seeders ?? 'Unknown'}</Text><Text style={styles.text}>Connected peers: {stats.peers ?? 'Unknown'} · Download: {stats.speed === null ? 'Unknown' : `${stats.speed.toFixed(2)} MB/s`}</Text></>}
       {button('cancel', 'Choose another source', () => close.current())}
     </View>}
     {!waiting && !error && controls && <View style={styles.controls}><Text style={styles.title}>{request.title}</Text>
@@ -182,7 +185,9 @@ export function NativePlayback({request, onProgress, onClose}: {request: NativeP
 const styles = StyleSheet.create({
   root: {position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'black'},
   video: {flex: 1, zIndex: 0},text: {fontSize: 25, color: 'white', marginBottom: 12},title: {fontSize: 32, color: 'white', marginBottom: 16},
-  loading: {position: 'absolute', zIndex: 20, top: '20%', left: '10%', right: '10%', padding: 32, backgroundColor: '#171d35ee'},
+  loading: {position: 'absolute', zIndex: 20, top: '20%', left: '10%', right: '10%', padding: 32, backgroundColor: 'transparent'},
+  buffering: {position: 'absolute', zIndex: 20, bottom: 48, right: 48, flexDirection: 'row', alignItems: 'center', backgroundColor: 'transparent'},
+  bufferingText: {fontSize: 23, color: 'white', marginLeft: 12, textShadowColor: 'black', textShadowOffset: {width: 1, height: 1}, textShadowRadius: 3},
   controls: {position: 'absolute', zIndex: 10, left: 0, right: 0, bottom: 0, padding: 32, backgroundColor: '#101426ee'},row: {flexDirection: 'row'},
   button: {padding: 18, backgroundColor: '#333a56', marginRight: 18, borderWidth: 3, borderColor: 'transparent', borderRadius: 10},focus: {borderColor: '#4ce0df', backgroundColor: '#50598a'},
 });

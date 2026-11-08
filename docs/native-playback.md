@@ -132,3 +132,11 @@ acceleration, cancellation and single-use commit. The new timeline still needs
 on-device focus, hold and pointer verification; the Stick was unreachable during
 this implementation. The earlier physical-remote confirmation above applies to
 the existing ±10 controls, not this new timeline.
+
+The user subsequently confirmed the timeline works on the TV. After playback has
+started, seeking and rebuffering use a small transparent “Buffering…” indicator
+instead of reopening the detailed connection panel. Initial connection statistics
+still show seeders, connected peers and speed; leecher counts are omitted from
+the loading and source screens. Playback errors retain their explanation and
+source-selection action. Select during the compact buffering indicator does not
+activate a hidden source-selection button; Back remains available to leave playback.
