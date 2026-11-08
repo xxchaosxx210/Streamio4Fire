@@ -59,6 +59,7 @@ pub fn router(managed: Arc<Managed>) -> Router {
         .route("/{hash}/stats.json", get(stats_all))
         .route("/{hash}/{idx}/stats.json", get(stats_file))
         .route("/{hash}/{idx}", get(stream))
+        .route("/remux/{hash}/{idx}", get(crate::remux::section))
         .route("/torrents/{hash}/stats/v1", get(diagnostic_stats))
         .nest_service("/app", tower_http::services::ServeDir::new("/pkg/assets/stremio"))
         .nest_service("/upnp/ui", tower_http::services::ServeDir::new("/pkg/assets/stremio"))

@@ -36,6 +36,7 @@ buildinfo.json
 CMakeUserPresets.json
 # Downloaded/built Stremio frontend
 /torrent-probe/stremio-wrapper/assets/stremio/
+/torrent-probe/stremio-wrapper/assets/third-party/
 
 # Local credentials, signing materials and device state
 .env

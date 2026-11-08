@@ -4,6 +4,7 @@ mod cache;
 mod cache_settings;
 mod managed;
 mod ranges;
+mod remux;
 mod rolling;
 #[cfg(any(test, feature = "rolling-selftest"))]
 pub mod rolling_tests;

@@ -20,6 +20,13 @@
   upstream licences and SDK terms. SDK binaries, sysroots, toolchains and npm
   dependencies are not redistributed here. Generated Kepler bridge files retain
   their generated-code notices.
+- **FFmpeg 7.1.3**, FFmpeg contributors: https://ffmpeg.org/ — LGPL-2.1-or-later
+  for the configured subset. Unmodified source:
+  https://ffmpeg.org/releases/ffmpeg-7.1.3.tar.xz . `scripts/build-remux.sh` pins
+  its checksum and exact configuration; GPL/nonfree components are not enabled.
+  The native module statically links libavformat, libavcodec and libavutil for
+  stream-copy remuxing. The app includes the LGPL licence and source/build notice
+  under `assets/third-party`. No decoding or encoding is enabled in this build.
 - **Big Buck Bunny**, Blender Foundation / Peach project:
   https://peach.blender.org/ — Creative Commons Attribution 3.0.
   Only torrent metadata is provided as a test fixture; the movie is not bundled.

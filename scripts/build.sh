@@ -30,6 +30,8 @@ NODE_PATH="$frontend/node_modules" node "$root/torrent-probe/frontend-tv/api.tes
 SERVICE_WORKER_DISABLED=true npx --yes pnpm@11.8.0 build
 
 wrapper="$root/torrent-probe/stremio-wrapper"
+bash "$root/scripts/build-remux.sh"
+export STREAMIO_FFMPEG_ROOT="$root/.build/remux/ffmpeg-7.1.3"
 mkdir -p "$wrapper/assets/stremio"
 cp -a build/. "$wrapper/assets/stremio/"
 cp "$root/torrent-probe/frontend-controls/vega-tv.js" "$wrapper/assets/stremio/vega-tv.js"

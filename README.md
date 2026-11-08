@@ -68,6 +68,8 @@ bash scripts/build.sh
 
 The script downloads the official Stremio Web source at the pinned commit,
 preserves its licence, applies our keyboard patch, and builds its assets locally.
+It also builds a checksum-pinned FFmpeg subset into the native module for
+[standalone MKV seeking](docs/mkv-seeking.md), without re-encoding media.
 Website service-worker registration is disabled: these assets are already bundled
 with the native app. The entry page uses `/app/`, outside the legacy `/upnp/ui/`
 worker scope, while keeping the same origin and existing user data.

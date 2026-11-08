@@ -78,7 +78,7 @@ then delivered after the rebuilt page signals readiness. A saved position of
 420.735 seconds survived termination and relaunch. Remote presses use the latest
 focus state and consume paired down/up events once, including release-only Select.
 
-## Seeking regression and remaining limitation
+## Seeking regression
 
 The live torrent engine had two independent hazards: file-selection updates held
 the torrent lock while reconnecting peers (opposite the scheduler's lock order),
@@ -101,6 +101,11 @@ short-sample physical +10 confirmation does not establish seeking for this MKV.
 Amazon also documents a platform-specific Matroska HTTP seeking issue in its
 [native-player discussion](https://community.amazondeveloper.com/t/native-kepler-player-controls-not-working-for-mp4-files-with-mkv-container/28603).
 No operating-system update was installed as part of these fixes.
+
+The subsequent [MKV seeking workaround](mkv-seeking.md) resolves this torrent
+playback case through in-process stream-copy remuxing and native MediaSource.
+The user confirmed +10, −10, Play/Pause and audio sync on the physical remote.
+The native HTTP/Matroska limitation still applies to direct external MKV URLs.
 
 The [codec matrix](native-codecs.md) remains a limited short-sample test, not a
 claim of all resolutions, profiles, audio output configurations or endurance.

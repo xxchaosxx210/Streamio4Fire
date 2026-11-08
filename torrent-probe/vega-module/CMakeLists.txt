@@ -8,6 +8,15 @@ if(NOT DEFINED ENV{PROBE_RUST_ARCHIVE})
 endif()
 file(GLOB GENERATED kepler/turbo-modules/generated/*.cpp)
 kepler_add_turbo_module_library(VegaTransport ${GENERATED}
-  kepler/turbo-modules/VegaTransport.cpp kepler/AutoLinkInit.cpp)
-target_link_libraries(VegaTransport PRIVATE "$ENV{PROBE_RUST_ARCHIVE}" pthread dl m)
+  kepler/turbo-modules/VegaTransport.cpp kepler/turbo-modules/StreamioRemux.cpp kepler/AutoLinkInit.cpp)
+
+if(NOT DEFINED ENV{STREAMIO_FFMPEG_ROOT})
+  message(FATAL_ERROR "Set STREAMIO_FFMPEG_ROOT to the configured ARMv7 FFmpeg source/build directory")
+endif()
+set(FFMPEG "$ENV{STREAMIO_FFMPEG_ROOT}")
+target_include_directories(VegaTransport PRIVATE "${FFMPEG}")
+target_link_options(VegaTransport PRIVATE "-Wl,-Bsymbolic" "-Wl,--exclude-libs,ALL")
+target_link_libraries(VegaTransport PRIVATE "$ENV{PROBE_RUST_ARCHIVE}"
+  "${FFMPEG}/libavformat/libavformat.a" "${FFMPEG}/libavcodec/libavcodec.a"
+  "${FFMPEG}/libavutil/libavutil.a" pthread dl m)
 install(TARGETS VegaTransport)

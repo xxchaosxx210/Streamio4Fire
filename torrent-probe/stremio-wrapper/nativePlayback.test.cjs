@@ -23,10 +23,15 @@ assert.equal(result.isBundledPage('http://127.0.0.1:11470/app/#/tv/sources'), tr
 assert.equal(parse(message({returnUrl:'https://example.org/'})).returnUrl, undefined);
 assert.equal(parse(message({returnUrl:'http://127.0.0.1:11470/app/#/tv/sources'})).returnUrl, 'http://127.0.0.1:11470/app/#/tv/sources');
 const held = new Set();
+assert.equal(parse(message({container:'mkv'})).container,'mkv');
+assert.equal(parse(message({container:'arbitrary'})).container,undefined);
+const hash='a'.repeat(40);
+assert.equal(result.remuxEndpoint(`http://127.0.0.1:11470/${hash}/1`),`http://127.0.0.1:11470/remux/${hash}/1`);
+for(const url of [`https://example.org/${hash}/1`,`http://127.0.0.1:11470@evil.test/${hash}/1`,`http://127.0.0.1:11470/${hash}/../1`,`http://127.0.0.1:11470/${hash}/1?input=other`,`http://127.0.0.1:11470/invalid/1`])assert.equal(result.remuxEndpoint(url),null);
 assert.equal(result.handleTVPress(held, 'select', 1), true);
 assert.equal(result.handleTVPress(held, 'select', 0), true);
 assert.equal(result.handleTVPress(held, 'select', 0), false);
 assert.equal(result.handleTVPress(held, 'select', 1), false);
 assert.equal(result.handleTVPress(held, 'select', 1), true);
 assert.equal(result.handleTVPress(held, 'playpause', undefined), true);
-console.log('22 native playback bridge and remote checks passed');
+console.log('30 native playback bridge, remote and remux-boundary checks passed');

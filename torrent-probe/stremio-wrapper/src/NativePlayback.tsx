@@ -2,7 +2,8 @@ import React, {useEffect, useRef, useState} from 'react';
 import {ActivityIndicator, AppState, BackHandler, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {useTVEventHandler} from '@amazon-devices/react-native-kepler';
 import {KeplerVideoView, VideoPlayer} from '@amazon-devices/react-native-w3cmedia';
-import {handleTVPress, NativePlaybackRequest} from './nativePlayback';
+import {handleTVPress, NativePlaybackRequest, remuxEndpoint} from './nativePlayback';
+import {RemuxPlayback} from './RemuxPlayback';
 
 export type NativeProgress = {id: string; position: number; duration: number; ended: boolean};
 export function NativePlayback({request, onProgress, onClose}: {request: NativePlaybackRequest; onProgress: (progress: NativeProgress) => void; onClose: (progress: NativeProgress) => void}) {
@@ -20,6 +21,10 @@ export function NativePlayback({request, onProgress, onClose}: {request: NativeP
   const [preferFocus, setPreferFocus] = useState(true);
   const [seekMessage, setSeekMessage] = useState('');
   const seekAttempt = useRef<{from: number; target: number; started: number; paused: boolean; seekedAt?: number; warned?: boolean} | null>(null);
+  const remux = useRef<RemuxPlayback|null>(null);
+  const preparing = useRef(false);
+  const movieDuration = useRef(0);
+  const lastPosition = useRef(0);
   const [stats, setStats] = useState({peers: null as number | null, speed: null as number | null});
   const shown = useRef(Date.now());
   const lastAction = useRef({id: '', at: 0});
@@ -34,13 +39,22 @@ export function NativePlayback({request, onProgress, onClose}: {request: NativeP
     else current.pause();
     setPaused(current.paused);
   };
-  const seek = (amount: number) => {
-    const current = video.current;if (!current || !Number.isFinite(current.duration)) return;
-    const from = current.currentTime;const target = Math.max(0, Math.min(current.duration - 0.2, from + amount));
+  const seekTo = (target: number, message: string) => {
+    const current=video.current;if(!current || preparing.current)return;
+    const from=current.currentTime;const wasPaused=current.paused;
     seekAttempt.current = {from, target, started: Date.now(), paused: current.paused};
-    setSeekMessage(`Seeking ${amount > 0 ? 'forward' : 'back'} 10 seconds…`);reveal();
+    setSeekMessage(message);reveal();
+    const endpoint=remuxEndpoint(request.url);
+    if(endpoint && (request.container==='mkv' || remux.current)){
+      remux.current?.dispose();preparing.current=true;setWaiting(true);setStatus('Preparing video at the requested time…');
+      const session=new RemuxPlayback(current,endpoint,movieDuration.current,message=>{setError(message);setWaiting(false);setControls(true);});remux.current=session;
+      // A failed rebind has no valid clock; retain the last known resume point until close.
+      void session.start(target,wasPaused).then(()=>{if(remux.current===session){preparing.current=false;seekAttempt.current=null;setSeekMessage('');setWaiting(false);}}).catch(error=>{if(remux.current===session){session.dispose();setWaiting(false);setError(String(error.message || 'This source could not seek.'));setControls(true);}});
+      return;
+    }
     try {current.fastSeek(target);} catch {try {current.currentTime = target;} catch {seekAttempt.current = null;setSeekMessage('This source could not move to that time.');}}
   };
+  const seek = (amount:number) => {const current=video.current;if(!current || movieDuration.current<=0)return;seekTo(Math.max(0,Math.min(movieDuration.current-0.2,current.currentTime+amount)),`Seeking ${amount>0?'forward':'back'} 10 seconds…`);};
   useEffect(() => {if (controls || waiting || error) setPreferFocus(true);}, [controls, waiting, error]);
   const activate = (id: string, action: () => void) => {
     const now = Date.now();if (lastAction.current.id === id && now-lastAction.current.at < 300) return;
@@ -66,8 +80,8 @@ export function NativePlayback({request, onProgress, onClose}: {request: NativeP
     const current = new VideoPlayer();video.current = current;
     let active = true, initialized = false, closing = false, played = false, resumed = false, bufferingSince = 0, lastProgress = 0, advancing = 0, previousTime = 0;
     const started = Date.now();
-    const progress = (ended = false): NativeProgress => ({id: request.id, position: Number.isFinite(current.currentTime) ? current.currentTime : 0, duration: Number.isFinite(current.duration) ? current.duration : 0, ended});
-    const release = async () => {if (initialized) {initialized = false;try {current.pause();await current.deinitialize();} catch { /* Already deinitialized on shutdown. */ }}};
+    const progress = (ended = false): NativeProgress => ({id: request.id, position: preparing.current ? lastPosition.current : Number.isFinite(current.currentTime) ? current.currentTime : 0, duration: movieDuration.current, ended});
+    const release = async () => {remux.current?.dispose();remux.current=null;preparing.current=false;if (initialized) {initialized = false;try {current.pause();await current.deinitialize();} catch { /* Already deinitialized on shutdown. */ }}};
     const finish = async (ended = false) => {
       if (closing) return;closing = true;
       const saved = progress(ended);callbacks.current.onProgress(saved);
@@ -84,7 +98,10 @@ export function NativePlayback({request, onProgress, onClose}: {request: NativeP
     const timer = setInterval(() => {
       if (!active || !initialized || closing) return;
       const position = current.currentTime;
-      setTime(position || 0);setDuration(Number.isFinite(current.duration) ? current.duration : 0);setPaused(current.paused);
+      if(!remux.current && Number.isFinite(current.duration) && current.duration>0)movieDuration.current=current.duration;
+      if(preparing.current)return;
+      lastPosition.current=position || 0;
+      setTime(position || 0);setDuration(movieDuration.current);setPaused(current.paused);
       const attempt = seekAttempt.current;
       if (attempt) {
         const elapsed = (Date.now()-attempt.started)/1000;
@@ -96,7 +113,7 @@ export function NativePlayback({request, onProgress, onClose}: {request: NativeP
         else if (elapsed > 8 && !attempt.warned) {attempt.warned = true;setSeekMessage('The video has not moved to that time yet. It may be buffering, or this source may not support seeking.');shown.current = Date.now();setControls(true);}
         else if (elapsed > 30) seekAttempt.current = null;
       }
-      if (!resumed && played && current.duration > 0) {resumed = true;if (request.position > 5 && request.position < current.duration - 15) current.currentTime = request.position;}
+      if (!resumed && played && movieDuration.current > 0) {resumed = true;if (request.position > 5 && request.position < movieDuration.current - 15) {lastPosition.current=request.position;seekTo(request.position,'Resuming from the saved position…');if(preparing.current)return;}}
       if (position > previousTime + 0.05) advancing = Date.now();previousTime = position;
       if (!played && Date.now() - started > 45000) {setWaiting(false);setError('The video has not started. The source may be too slow or use an unsupported codec. Choose another source.');}
       if (played && !current.paused && Date.now() - advancing > 1800) {bufferingSince ||= Date.now();setWaiting(true);setStatus('Buffering video…');}
