@@ -570,6 +570,16 @@ impl ManagedTorrent {
         // if paused, need to update chunk tracker
 
         let mut g = self.locked.write();
+        // HTTP range readers repeat the same selection on each request. An
+        // unchanged selection must not reset partially received pieces or
+        // reconnect peers while those pieces are still in flight.
+        let unchanged = match g.only_files.as_ref() {
+            Some(current) => current.len() == only_files.len() && current.iter().all(|f| only_files.contains(f)),
+            None => only_files.len() == file_count,
+        };
+        if unchanged && matches!(&g.state, ManagedTorrentState::Live(_) | ManagedTorrentState::Paused(_)) {
+            return Ok(());
+        }
         match &mut g.state {
             ManagedTorrentState::Initializing(_) => bail!("can't update initializing torrent"),
             ManagedTorrentState::Error(_) => {}

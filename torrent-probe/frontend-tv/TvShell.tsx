@@ -164,7 +164,9 @@ export default function TvShell({children}: {children: React.ReactNode}) {
             } catch { /* Full storage must not interrupt playback. */ }
             if (progress.closed) {setSelection(null);requestAnimationFrame(() => root.current?.querySelector<HTMLButtonElement>(`button[data-focus="${remembered.current.get(routeKey) || ''}"]`)?.focus());}
         };
-        window.addEventListener('streamio-native-progress', update);return () => window.removeEventListener('streamio-native-progress', update);
+        window.addEventListener('streamio-native-progress', update);
+        (window as unknown as {ReactNativeWebView?: {postMessage: (message: string) => void}}).ReactNativeWebView?.postMessage(JSON.stringify({type:'native-ready'}));
+        return () => window.removeEventListener('streamio-native-progress', update);
     }, [routeKey]);
     useEffect(() => {if (wasPlayer.current && !player) {request.current?.abort();setSelection(null);}wasPlayer.current = player;}, [player]);
     useEffect(() => {
@@ -195,7 +197,7 @@ export default function TvShell({children}: {children: React.ReactNode}) {
                 const resumeId = `${meta.type}:${selectedVideo}`;let position = 0;
                 try {position = JSON.parse(localStorage.getItem('streamio-native-resume') || '{}')[resumeId]?.position || 0;} catch { /* Resume is optional. */ }
                 setSelection(null);
-                bridge.ReactNativeWebView.postMessage(JSON.stringify({type:'native-play', id:resumeId, title:meta.name, url:nativeUrl, position, hash:stream.infoHash, ...availability(stream)}));
+                bridge.ReactNativeWebView.postMessage(JSON.stringify({type:'native-play', id:resumeId, title:meta.name, url:nativeUrl, position, returnUrl:window.location.href, hash:stream.infoHash, ...availability(stream)}));
                 return;
             }
             const encoded = await core.transport.encodeStream(stream as unknown as Parameters<typeof core.transport.encodeStream>[0]);

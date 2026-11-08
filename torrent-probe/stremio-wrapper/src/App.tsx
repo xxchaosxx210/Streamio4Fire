@@ -6,6 +6,7 @@ import {addonInstallRoute} from './addonLinks';
 import {NativePlayback, NativeProgress} from './NativePlayback';
 import {isBundledPage, nativePlaybackRequest, NativePlaybackRequest} from './nativePlayback';
 import {AppState, Text, TouchableOpacity, View, StyleSheet} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   useHideSplashScreenCallback,
   usePreventHideSplashScreen,
@@ -22,9 +23,29 @@ export const App = () => {
   const webRef = useRef<WebViewMethods | null>(null);
   const [nativeRequest, setNativeRequest] = useState<NativePlaybackRequest | null>(null);
   const nativeRequestRef = useRef<NativePlaybackRequest | null>(null);
+  const [nativeSurfaceReady, setNativeSurfaceReady] = useState(false);
+  const progressWrite = useRef(Promise.resolve());
+  const pendingProgress = useRef<(NativeProgress & {closed: boolean}) | null>(null);
+  const progressKey = 'streamio-native-pending-progress';
   const emitProgress = (progress: NativeProgress, closed = false) => {
-    try {webRef.current?.injectJavaScript(`window.dispatchEvent(new CustomEvent('streamio-native-progress',{detail:${JSON.stringify({...progress, closed})}}));true;`);} catch { /* Renderer may be backgrounded. */ }
+    const value = {...progress, closed};pendingProgress.current = value;
+    progressWrite.current = progressWrite.current.catch(() => {}).then(() => AsyncStorage.setItem(progressKey, JSON.stringify(value))).catch(() => {});
+    try {webRef.current?.injectJavaScript(`window.dispatchEvent(new CustomEvent('streamio-native-progress',{detail:${JSON.stringify(value)}}));true;`);} catch { /* Browser is absent during native playback. */ }
   };
+  const flushProgress = async () => {
+    await progressWrite.current;
+    try {
+      const saved = pendingProgress.current || JSON.parse(await AsyncStorage.getItem(progressKey) || 'null');
+      if (saved && typeof saved.id === 'string' && Number.isFinite(saved.position)) webRef.current?.injectJavaScript(`window.dispatchEvent(new CustomEvent('streamio-native-progress',{detail:${JSON.stringify(saved)}}));true;`);
+    } catch { /* Resume storage is optional. */ }
+  };
+  useEffect(() => {
+    setNativeSurfaceReady(false);
+    if (!nativeRequest) return;
+    // Let Vega destroy the WebView's native window before creating video.
+    const timer = setTimeout(() => setNativeSurfaceReady(true), 250);
+    return () => clearTimeout(timer);
+  }, [nativeRequest]);
   const pageRequestUrl = useRef('');
   const loadFailure = useRef<string | null>(null);
   const [engineReady, setEngineReady] = useState(false);
@@ -57,6 +78,7 @@ export const App = () => {
       if (state === 'background') {
         backgrounded = true;
         setEngineReady(false);
+        if (nativeRequestRef.current?.returnUrl) setWebUrl(nativeRequestRef.current.returnUrl);
         setNativeRequest(null);nativeRequestRef.current = null;
         VegaTransport.stop();
       } else if (state === 'active' && backgrounded) {
@@ -78,13 +100,13 @@ export const App = () => {
     if (engineReady || engineError) hideSplashScreenCallback();
   }, [engineReady, engineError, hideSplashScreenCallback]);
   useEffect(() => {
-    if (!engineReady || pageLoaded || pageError) return;
+    if (!engineReady || nativeRequest || pageLoaded || pageError) return;
     const timeout = setTimeout(() => {
       setPageError(loadFailure.current ?? 'The app page did not finish loading. Please retry.');
       hideSplashScreenCallback();
     }, 20000);
     return () => clearTimeout(timeout);
-  }, [engineReady, pageLoaded, pageError, pageAttempt, hideSplashScreenCallback]);
+  }, [engineReady, nativeRequest, pageLoaded, pageError, pageAttempt, hideSplashScreenCallback]);
   const retryPage = () => {
     loadFailure.current = null;
     setPageError(null);
@@ -94,7 +116,7 @@ export const App = () => {
   };
   return (
     <View style={styles.container}>
-      {engineReady && pageError && <View style={styles.failure}>
+      {engineReady && !nativeRequest && pageError && <View style={styles.failure}>
         <Text style={styles.failureText}>{pageError}</Text>
         <TouchableOpacity hasTVPreferredFocus activeOpacity={0.85} onPress={retryPage} style={styles.retry} accessibilityRole="button">
           <Text style={styles.failureText}>Retry loading</Text>
@@ -103,11 +125,10 @@ export const App = () => {
       {!engineReady && <Text style={{color: 'white', fontSize: 28, padding: 40}}>
         {engineError ?? 'Starting local streaming engine...'}
       </Text>}
-      {engineReady && !pageError && <WebView
+      {engineReady && !nativeRequest && !pageError && <WebView
         key={pageAttempt}
         ref={webRef}
-        style={[styles.webview, nativeRequest ? {opacity: 0} : {}]}
-        pointerEvents={nativeRequest ? 'none' : 'auto'}
+        style={styles.webview}
         allowSystemKeyEvents
         allowsDefaultMediaControl
         domStorageEnabled
@@ -125,6 +146,7 @@ export const App = () => {
           // Vega's runtime omits url on some message events despite its type.
           const origin = event.nativeEvent.url || pageRequestUrl.current;
           if (!isBundledPage(origin) || nativeRequestRef.current) return;
+          try {if (JSON.parse(event.nativeEvent.data).type === 'native-ready') {void flushProgress();return;}} catch {return;}
           const request = nativePlaybackRequest(event.nativeEvent.data);
           if (request) {nativeRequestRef.current = request;setNativeRequest(request);}
         }}
@@ -172,10 +194,12 @@ export const App = () => {
           console.error(`[onSslError]: (${code}: ${url}) ${description}`);
         }}
       />}
-      {engineReady && !pageLoaded && !pageError && <View pointerEvents="none" style={styles.loading}>
+      {engineReady && !nativeRequest && !pageLoaded && !pageError && <View pointerEvents="none" style={styles.loading}>
         <Text style={styles.failureText}>Loading Streamio4Fire…</Text>
       </View>}
-      {engineReady && nativeRequest && <NativePlayback request={nativeRequest} onProgress={progress => emitProgress(progress)} onClose={progress => {
+      {engineReady && nativeRequest && !nativeSurfaceReady && <Text style={styles.failureText}>Opening video…</Text>}
+      {engineReady && nativeRequest && nativeSurfaceReady && <NativePlayback request={nativeRequest} onProgress={progress => emitProgress(progress)} onClose={progress => {
+        setWebUrl(nativeRequest.returnUrl || engineUrl);setPageLoaded(false);setPageError(null);setPageAttempt(value => value + 1);
         nativeRequestRef.current = null;setNativeRequest(null);emitProgress(progress, true);
         void fetch('http://127.0.0.1:11470/cache/release', {method: 'POST'}).catch(() => {});
       }} />}

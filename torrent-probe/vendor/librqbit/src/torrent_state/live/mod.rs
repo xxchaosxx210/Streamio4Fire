@@ -751,11 +751,15 @@ impl TorrentStateLive {
     }
 
     pub(crate) fn update_only_files(&self, only_files: &HashSet<usize>) -> anyhow::Result<()> {
-        let mut g = self.lock_write("update_only_files");
-        let ct = g.get_chunks_mut()?;
-        let hns =
-            ct.update_only_files(self.metadata.file_infos.iter().map(|f| f.len), only_files)?;
-        if !hns.finished() {
+        let reconnect = {
+            let mut g = self.lock_write("update_only_files");
+            let ct = g.get_chunks_mut()?;
+            !ct.update_only_files(self.metadata.file_infos.iter().map(|f| f.len), only_files)?.finished()
+        };
+        // The scheduler reserves pieces with a peer-map guard before locking
+        // torrent state. Reconnection also locks the peer map: never do it
+        // while holding torrent state, or a range request can deadlock both.
+        if reconnect {
             self.reconnect_all_not_needed_peers();
         }
         Ok(())

@@ -12,7 +12,8 @@
   vendored at `torrent-probe/vendor/librqbit`, with its Apache licence. Upstream
   source commit: `00b97485160ff5b5aa2b379ea0815d568ec665f0`, `crates/librqbit`.
   Streamio4Fire changes add opt-in rolling storage hooks, stream-window scheduling,
-  safe piece invalidation and cache-miss retry. Evictable data is not advertised
+  safe piece invalidation, cache-miss retry, idempotent file selection and a
+  peer-reconnection lock-order correction. Evictable data is not advertised
   or uploaded to peers. See `docs/rolling-cache.md`. Other dependencies remain
   resolved by Cargo; Cargo.lock records exact versions.
 - **React, React Native and Amazon Vega SDK components** retain their respective

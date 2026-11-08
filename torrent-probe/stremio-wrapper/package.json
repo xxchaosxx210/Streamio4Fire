@@ -24,7 +24,8 @@
     "@amazon-devices/webview": "~4.0.0",
     "react": "19.2.0",
     "react-native": "0.83.0",
-    "@amazon-devices/react-native-w3cmedia": "2.3.5"
+    "@amazon-devices/react-native-w3cmedia": "2.3.5",
+    "@react-native-async-storage/async-storage": "npm:@amazon-devices/react-native-async-storage__async-storage@~2.1.0"
   },
   "engines": {
     "node": ">=20"

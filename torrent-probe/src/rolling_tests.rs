@@ -205,6 +205,18 @@ async fn run_layout(prefix: Option<u64>) {
         .into_handle()
         .unwrap();
     handle.wait_until_initialized().await.unwrap();
+    // HTTP range requests repeat file selection while peer schedulers reserve
+    // pieces. Exercise that lock ordering during real peer traffic and seeks.
+    let changing = session.clone();
+    let update_files = tokio::spawn(async move {
+        let api = librqbit::Api::new(changing, None, None);
+        let id = librqbit::api::TorrentIdOrHash::parse(&hex::encode(hash)).unwrap();
+        let selected = [file_index].into_iter().collect();
+        for _ in 0..1000 {
+            api.api_torrent_action_update_only_files(id, &selected).await.unwrap();
+            tokio::time::sleep(Duration::from_millis(1)).await;
+        }
+    });
     let mut stream = handle.clone().stream(file_index).unwrap();
     for block in 0..24 {
         verify(&mut stream, block * PIECE as u64, PIECE, prefix).await;
@@ -234,6 +246,7 @@ async fn run_layout(prefix: Option<u64>) {
         "disk allocation exceeded budget: {allocated}"
     );
     assert!(!root.join("video.mp4").exists());
+    update_files.await.unwrap();
     drop(stream);
     drop(other);
     session.stop().await;
