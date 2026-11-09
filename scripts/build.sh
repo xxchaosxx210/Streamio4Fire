@@ -60,4 +60,6 @@ node addonLinks.test.cjs
 node nativePlayback.test.cjs
 node timeline.test.cjs
 npx --no-install tsc --noEmit
-npx --no-install react-native build-vega --build-type Debug --target armv7
+# Installable builds must exclude development networking/inspector services.
+# Debug builds retained resolver workers on the retail Stick during soak tests.
+npx --no-install react-native build-vega --build-type Release --target armv7

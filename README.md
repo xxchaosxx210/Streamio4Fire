@@ -77,9 +77,12 @@ SDKs, dependencies, compiled assets and installers are excluded from Git.
 The complete build from this newly assembled checkout still needs validation;
 individual components and the installed prototype were tested during development.
 
-Install the resulting `torrent-probe/stremio-wrapper/build/armv7-debug/*.vpkg`
+Install the resulting `torrent-probe/stremio-wrapper/build/armv7-release/*.vpkg`
 using the Vega SDK device tools. Enable developer access and supply your device
 address locally. No accounts, VPN credentials or configured addons are included.
+Installable packages use Release mode. Debug mode enables development services
+and showed unbounded resolver-thread growth on the retail Stick during
+[testing](docs/validation/2026-11-09-release-playback.md).
 
 ## Checks
 

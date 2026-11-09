@@ -25,8 +25,9 @@ seconds to prepare.
 Repeated runs returned to Fire TV Home. Lifecycle records and exported,
 app-specific reports establish SIGABRT in the foreground process. One observed
 run lasted about eight minutes and included intermittent buffering. The crashing
-stack reaches native media-player pipeline reconfiguration through C++ thread
-creation. Reports contained roughly 350 threads. Live samples showed growth near
+stack reaches C++ thread creation while the native player handles an app-source
+need-data request (resolved with exact runtime libraries on 9 November).
+Reports contained roughly 350 threads. Live samples showed growth near
 28–30 threads per minute, predominantly numbered `JSThread` workers; the Rust
 runtime worker group stayed small. This does not establish which native API is
 retaining the workers.
@@ -57,3 +58,9 @@ removed and their absence verified. The app was VISIBLE in the lifecycle manager
 and an actual screenshot confirmed the populated Streamio4Fire home screen.
 The native long-playback abort remains unresolved; launch restoration is not an
 endurance-test pass.
+
+## Further investigation — 9 November
+
+The exact runtime stacks and a Debug-versus-Release comparison are recorded in
+[the Release playback follow-up](2026-11-09-release-playback.md). The original
+thread-growth finding above describes the Debug installer used on 8 November.
