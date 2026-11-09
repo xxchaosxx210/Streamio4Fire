@@ -2,7 +2,7 @@ export type Manifest = {
     id: string; name: string; types?: string[];
     resources?: Array<string | {name: string; types?: string[]; idPrefixes?: string[]}>;
     idPrefixes?: string[];
-    catalogs?: Array<{id: string; type: string; name?: string; extra?: Array<{name: string}>; extraSupported?: string[]}>;
+    catalogs?: Array<{id: string; type: string; name?: string; extra?: Array<{name: string; options?: string[]; isRequired?: boolean}>; extraSupported?: string[]}>;
 };
 export type Addon = {manifest: Manifest; transportUrl: string};
 export type Video = {id: string; title?: string; season?: number; episode?: number; released?: string};

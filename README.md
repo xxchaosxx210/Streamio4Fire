@@ -13,6 +13,8 @@ Confirmed on a Fire TV Stick HD running Vega OS 2.0:
 - Bundled Stremio Web frontend with a local Rust streaming engine.
 - Real Torrentio selection and progressive playback of licensed Big Buck Bunny.
 - Video, audio, pause/resume, Back, seeking and D-pad control navigation.
+- [Personalised Home](docs/personal-home.md): Continue watching, local favourites,
+  Library management and catalogue-supported genre filters.
 - Settings → Streaming & Cache: persistent Auto/manual budget, storage usage,
   clearing unused downloads, and idle download pausing.
 - Addon installation links return to the app instead of a blank WebView.

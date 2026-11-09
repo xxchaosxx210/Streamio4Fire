@@ -27,6 +27,7 @@ cp "$root/torrent-probe/frontend-tv/"*.ts "$root/torrent-probe/frontend-tv/"*.ts
 npx --yes pnpm@11.8.0 install --frozen-lockfile --ignore-scripts
 NODE_PATH="$frontend/node_modules" node "$root/torrent-probe/frontend-controls/keyboard.test.cjs"
 NODE_PATH="$frontend/node_modules" node "$root/torrent-probe/frontend-tv/api.test.cjs"
+NODE_PATH="$frontend/node_modules" node "$root/torrent-probe/frontend-tv/library.test.cjs"
 SERVICE_WORKER_DISABLED=true npx --yes pnpm@11.8.0 build
 
 wrapper="$root/torrent-probe/stremio-wrapper"
@@ -36,14 +37,8 @@ mkdir -p "$wrapper/assets/stremio"
 cp -a build/. "$wrapper/assets/stremio/"
 cp "$root/torrent-probe/frontend-controls/vega-tv.js" "$wrapper/assets/stremio/vega-tv.js"
 cp "$root/assets/branding/streamio4fire-icon.png" "$wrapper/assets/stremio/images/streamio4fire-icon.png"
-python3 - "$wrapper/assets/stremio/index.html" <<'PY'
-import pathlib, sys
-p = pathlib.Path(sys.argv[1])
-s = p.read_text()
-assert '<head>' in s, 'Upstream HTML head changed'
-s = s.replace('<head>', '<head><script src="/tv.js"></script>', 1)
-p.write_text(s)
-PY
+python3 "$root/scripts/test-prepare-tv-assets.py"
+python3 "$root/scripts/prepare-tv-assets.py" "$wrapper/assets/stremio/index.html"
 
 cd "$root/torrent-probe"
 bash build-armv7.sh --embedded
