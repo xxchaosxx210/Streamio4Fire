@@ -48,3 +48,12 @@ Raw crash dumps, source configuration, account details, and temporary debugger
 files are kept outside the repository. Audio sync, pointer dragging, another live
 MP4 source, deliberate unavailable-source recovery, and a successful 30-minute
 run remain unverified in this follow-up.
+
+## Launch restoration — 9 November
+
+After reconnection, the temporary debug-launch configuration was cleared and the
+committed normal build reinstalled. Both temporary debugger executables were
+removed and their absence verified. The app was VISIBLE in the lifecycle manager,
+and an actual screenshot confirmed the populated Streamio4Fire home screen.
+The native long-playback abort remains unresolved; launch restoration is not an
+endurance-test pass.
